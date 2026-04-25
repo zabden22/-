@@ -1,0 +1,989 @@
+/* إعدادات الخط والألوان الأساسية */
+@import url('https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;600;700&display=swap');
+
+* {
+    margin: 0; padding: 0; box-sizing: border-box;
+    font-family: 'Poppins', sans-serif;
+}
+
+body {
+    background-color: #f5f7fa;
+    height: 100vh;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    direction: ltr; /* اتجاه إنجليزي */
+}
+
+.main-auth-container {
+    width: 90%;
+    max-width: 1100px;
+}
+
+.auth-card {
+    display: flex;
+    background: #fff;
+    border-radius: 40px;
+    overflow: hidden;
+    box-shadow: 0 25px 50px rgba(0,0,0,0.1);
+    min-height: 750px;
+}
+
+/* --- الجزء الشمال (الفورم) --- */
+.form-section {
+    flex: 1.2;
+    padding: 40px 60px;
+    display: flex;
+    flex-direction: column;
+}
+
+.main-logo {
+    height: 100px; /* 👈 اللوجو كبير وفوق */
+    width: auto;
+    margin-bottom: 50px;
+}
+
+.login-content h1 {
+    font-size: 34px;
+    font-weight: 700;
+    color: #222;
+    margin-bottom: 8px;
+}
+
+.subtitle {
+    color: #888;
+    margin-bottom: 40px;
+}
+
+/* الحقول والأيقونات */
+.input-field {
+    position: relative;
+    margin-bottom: 20px;
+}
+
+.input-field i {
+    position: absolute;
+    left: 20px;
+    top: 50%;
+    transform: translateY(-50%);
+    color: #999;
+}
+
+.input-field input {
+    width: 100%;
+    padding: 16px 20px 16px 55px;
+    background: #f8f9fb;
+    border: 1px solid #eee;
+    border-radius: 15px;
+    outline: none;
+    font-size: 15px;
+}
+
+.extra-links {
+    text-align: right;
+    margin-bottom: 30px;
+}
+
+.extra-links a {
+    color: #76a08a;
+    text-decoration: none;
+    font-size: 14px;
+}
+
+.submit-btn {
+    width: 100%;
+    padding: 16px;
+    background: #1a1a1a;
+    color: #fff;
+    border: none;
+    border-radius: 15px;
+    font-size: 17px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: 0.3s;
+}
+
+/* --- الجزء اليمين (الأخضر) --- */
+.image-section {
+    flex: 1;
+    background-color: #76a08a; /* اللون الأخضر بتاعك */
+    padding: 30px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    position: relative;
+}
+
+.secondary-logo {
+    height: 140px; /* 👈 لوجو الوزارة كبير وفوق */
+    width: auto;
+    margin-bottom: 20px;
+}
+
+.art-container {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.main-art {
+    max-width: 110%; /* تخرج برا شوية زي الصورة */
+    transform: translateX(-15px);
+}
+
+/* الصندوق الزجاجي (Glassmorphism) */
+.welcome-glass-box {
+    background: rgba(255, 255, 255, 0.2);
+    backdrop-filter: blur(10px);
+    border-radius: 25px;
+    padding: 25px;
+    text-align: center;
+    width: 100%;
+    color: #fff;
+    border: 1px solid rgba(255, 255, 255, 0.3);
+}
+
+.step-dots {
+    display: flex;
+    justify-content: center;
+    gap: 8px;
+    margin-top: 15px;
+}
+
+.step-dots span {
+    width: 8px; height: 8px;
+    background: rgba(255,255,255,0.4);
+    border-radius: 50%;
+}
+
+.step-dots span.active {
+    width: 25px;
+    background: #fff;
+    border-radius: 10px;
+}
+:root {
+    --primary-green: #0d5e42;
+    --light-green: #6da08e;
+    --white: #ffffff;
+}
+
+* {
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+    font-family: 'Segoe UI', sans-serif;
+}
+
+body {
+    background-color: #222; /* خلفية خارجية داكنة */
+    height: 100vh;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    direction: ltr;
+}
+
+.auth-card {
+    display: flex;
+    width: 1000px;
+    height: 650px;
+    background-color: var(--light-green);
+    border-radius: 40px;
+    overflow: hidden;
+}
+
+/* الجزء الأخضر */
+.illustration-side {
+    flex: 1.2;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    padding: 20px;
+}
+.gov-logo {
+    width: 110px;
+    align-self: flex-end;
+}
+.main-art {
+    max-width: 90%;
+    height: auto;
+}
+
+/* الجزء الأبيض المظبوط بالملي */
+.form-side-container {
+    flex: 1;
+    background-color: var(--white);
+    /* الانحناء من جهة اليسار (الداخل) فقط */
+    border-radius: 40px 0 0 40px; 
+    padding: 40px;
+    display: flex;
+    flex-direction: column;
+}
+
+.header-logos {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    margin-bottom: 60px;
+}
+
+.brand-logo { font-size: 22px; font-weight: bold; }
+.brand-logo .transit { color: var(--primary-green); }
+.brand-logo .way { color: #f29ebc; }
+.min-logo { width: 60px; }
+
+.form-content {
+    padding: 0 20px;
+}
+
+.back-btn {
+    background: none;
+    border: none;
+    font-size: 24px;
+    cursor: pointer;
+    margin-bottom: 30px;
+}
+
+h1 { font-size: 28px; margin-bottom: 10px; color: #333; }
+.desc { font-size: 14px; color: #666; margin-bottom: 30px; line-height: 1.6; }
+
+.input-wrapper {
+    position: relative;
+    margin-bottom: 25px;
+}
+
+.input-wrapper .icon {
+    position: absolute;
+    left: 15px;
+    top: 50%;
+    transform: translateY(-50%);
+    color: #999;
+}
+
+.input-wrapper input {
+    width: 100%;
+    padding: 15px 15px 15px 45px;
+    border: 1px solid #eee;
+    border-radius: 12px;
+    background-color: #fafafa;
+    outline: none;
+}
+
+.send-code-btn {
+    width: 100%;
+    padding: 16px;
+    background-color: var(--primary-green);
+    color: white;
+    border: none;
+    border-radius: 12px;
+    font-weight: bold;
+    cursor: pointer;
+    transition: 0.3s;
+}
+
+.send-code-btn:hover { background-color: #0a4b35; }
+:root {
+    --primary-green: #0d5e42;
+    --light-green: #6da08e;
+    --white: #ffffff;
+}
+
+/* التنسيقات الأساسية */
+* { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Segoe UI', sans-serif; }
+
+body {
+    background-color: #222;
+    height: 100vh;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+}
+
+.auth-card {
+    display: flex;
+    width: 1000px;
+    height: 650px;
+    background-color: var(--light-green);
+    border-radius: 45px;
+    overflow: hidden;
+}
+
+.illustration-side {
+    flex: 1.2;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+}
+
+.verify-art { max-width: 85%; }
+
+.form-side-container {
+    flex: 1;
+    background-color: var(--white);
+    border-radius: 45px 0 0 45px; /* الانحناء جهة اليسار للداخل */
+    padding: 40px;
+    display: flex;
+    flex-direction: column;
+}
+
+.header-logos {
+    display: flex;
+    justify-content: space-between;
+    margin-bottom: 50px;
+}
+
+.brand-logo { font-size: 22px; font-weight: bold; }
+.brand-logo .transit { color: var(--primary-green); }
+.brand-logo .way { color: #f29ebc; }
+.min-logo { width: 55px; }
+
+.form-content { padding: 0 20px; text-align: center; }
+.back-btn { background: none; border: none; font-size: 24px; cursor: pointer; float: right; margin-bottom: 20px; }
+
+h1 { font-size: 32px; margin-bottom: 15px; color: #1a1a1a; clear: both; }
+.desc { font-size: 15px; color: #666; margin-bottom: 40px; line-height: 1.4; }
+
+/* تنسيق مربعات الأرقام */
+.otp-inputs {
+    display: flex;
+    justify-content: center;
+    gap: 15px;
+    margin-bottom: 40px;
+}
+
+.otp-inputs input {
+    width: 60px;
+    height: 60px;
+    text-align: center;
+    font-size: 24px;
+    font-weight: bold;
+    border: 1px solid #ddd;
+    border-radius: 12px;
+    background-color: #fff;
+    outline: none;
+    transition: 0.3s;
+}
+
+.otp-inputs input:focus {
+    border-color: var(--primary-green);
+    box-shadow: 0 0 5px rgba(13, 94, 66, 0.2);
+}
+
+.verify-btn {
+    width: 100%;
+    padding: 16px;
+    background-color: var(--primary-green);
+    color: white;
+    border: none;
+    border-radius: 12px;
+    font-size: 16px;
+    font-weight: bold;
+    cursor: pointer;
+}
+:root {
+    --primary-green: #0d5e42;
+    --light-green: #6da08e;
+    --white: #ffffff;
+}
+
+* { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Segoe UI', sans-serif; }
+
+body {
+    background-color: #222;
+    height: 100vh;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+}
+
+.auth-card {
+    display: flex;
+    width: 1000px;
+    height: 650px;
+    background-color: var(--light-green);
+    border-radius: 45px;
+    overflow: hidden;
+}
+
+/* الجزء الأبيض */
+.reset-radius {
+    border-radius: 0 45px 45px 0 !important; /* الانحناء من اليمين ليطابق الصورة */
+    background-color: var(--white);
+    flex: 1;
+    padding: 40px;
+    display: flex;
+    flex-direction: column;
+}
+
+.illustration-side {
+    flex: 1.2;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 20px;
+    position: relative;
+}
+
+.min-logo-top { width: 60px; align-self: flex-end; margin: 10px; }
+.reset-art { max-width: 90%; margin-top: 50px; }
+
+/* تنسيق المدخلات */
+.input-wrapper {
+    position: relative;
+    margin-bottom: 20px;
+}
+
+.input-wrapper input {
+    width: 100%;
+    padding: 15px 40px;
+    border: 1px solid #ddd;
+    border-radius: 12px;
+    background-color: #fdfdfd;
+    outline: none;
+}
+
+.icon-left { position: absolute; left: 15px; top: 50%; transform: translateY(-50%); color: #aaa; }
+.icon-right { position: absolute; right: 15px; top: 50%; transform: translateY(-50%); color: #aaa; cursor: pointer; }
+
+.reset-btn {
+    width: 100%;
+    padding: 16px;
+    background-color: var(--primary-green);
+    color: white;
+    border: none;
+    border-radius: 12px;
+    font-weight: bold;
+    cursor: pointer;
+    margin-top: 10px;
+}
+/* الألوان الأساسية للمشروع */
+/* الألوان والخطوط */
+:root {
+    --main-green: #5ba38e;
+    --sidebar-text: #8e9494;
+    --bg-light: #f4f7f6;
+}
+/* تصفير الهوامش الافتراضية للمتصفح */
+html, body {
+    margin: 0;
+    padding: 0;
+    width: 100%;
+    height: 100%;
+}
+
+.dashboard-container {
+    display: flex; /* بيخلي السايد بار والمحتوى جنب بعض */
+    width: 100%;   /* يملأ عرض الشاشة بالكامل */
+    min-height: 100vh; /* يملأ طول الشاشة بالكامل */
+}
+
+.main-content {
+    flex: 1; /* بيجبر الجزء ده إنه ياخد كل المساحة الفاضية اللي جنب السايد بار */
+    background-color: #f4f7f6;
+    padding: 40px; /* مسافة داخلية عشان الكلام ما يلزقش في الحواف */
+}
+
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+    font-family: 'Segoe UI', sans-serif;
+}
+.chart-container {
+    position: relative;
+    height: 400px; /* لازم تحدد طول ثابت عشان الرسمة تفرش جواه */
+    width: 100%;
+    background: white;
+    padding: 20px;
+    border-radius: 15px;
+}
+.dashboard-container {
+    display: flex;
+    height: 100vh;
+    background-color: var(--bg-light);
+}
+
+/* Sidebar */
+.sidebar {
+    width: 260px;
+    background: white;
+    border-right: 1px solid #e0e0e0;
+    display: flex;
+    flex-direction: column;
+}
+
+.logo {
+    padding: 30px 25px;
+    color: var(--main-green);
+}
+
+.logo span { color: #f582ae; }
+
+.sidebar ul { list-style: none; flex-grow: 1; }
+
+.sidebar ul li { padding: 12px 25px; }
+
+.sidebar ul li a {
+    text-decoration: none;
+    color: var(--sidebar-text);
+    display: flex;
+    align-items: center;
+    gap: 15px;
+}
+
+.sidebar li.active {
+    background-color: var(--main-green);
+    border-radius: 0 50px 50px 0;
+    margin-right: 20px;
+}
+
+.sidebar li.active a { color: white; }
+
+/* Main Content */
+.main-content { flex: 1; padding: 30px; overflow-y: auto; }
+
+.top-bar {
+    display: flex;
+    justify-content: space-between;
+    margin-bottom: 30px;
+}
+
+.page-title { color: var(--main-green); font-weight: bold; }
+
+.welcome-section h1 {
+    font-size: 24px;
+    margin-bottom: 25px;
+    color: #333;
+}
+
+/* Stats Cards Grid */
+.stats-grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 20px;
+    margin-bottom: 30px;
+}
+
+.stat-card {
+    background: white;
+    padding: 20px;
+    border-radius: 15px;
+    border: 1px solid #d1e2dd;
+    display: flex;
+    flex-direction: column;
+}
+
+.stat-number {
+    font-size: 22px;
+    font-weight: bold;
+    color: #333;
+}
+
+.stat-number span {
+    font-size: 14px;
+    color: #999;
+}
+
+.stat-label {
+    margin-top: 10px;
+    font-size: 14px;
+    color: #444;
+}
+
+/* Chart */
+.chart-container {
+    background: white;
+    padding: 25px;
+    border-radius: 15px;
+    box-shadow: 0 4px 10px rgba(0,0,0,0.02);
+}
+
+.chart-header {
+    display: flex;
+    justify-content: space-between;
+    margin-bottom: 20px;
+}
+
+.logout a { color: #ff5c5c; text-decoration: none; padding: 25px; display: block; }
+/* Main Content Styling */
+.main-content {
+    flex: 1;
+    padding: 30px;
+    overflow-y: auto;
+}
+
+.top-bar {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 30px;
+}
+
+.page-title {
+    color: #5ba38e;
+    font-size: 20px;
+    font-weight: bold;
+}
+
+.user-profile {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    color: #333;
+}
+
+.content-card {
+    background-color: white;
+    border-radius: 15px;
+    padding: 25px;
+    box-shadow: 0 4px 10px rgba(0,0,0,0.02);
+}
+
+.table-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 30px;
+}
+
+.status-indicator {
+    color: #5ba38e;
+    font-size: 12px;
+}
+
+.table-actions {
+    display: flex;
+    gap: 20px;
+}
+
+.search-box {
+    position: relative;
+    background-color: #f9fbfb;
+    border-radius: 8px;
+    padding: 8px 15px;
+}
+
+.search-box input {
+    border: none;
+    background: transparent;
+    outline: none;
+    padding-left: 10px;
+    color: #999;
+}
+
+.btn-add {
+    background-color: #5ba38e;
+    color: white;
+    border: none;
+    padding: 10px 20px;
+    border-radius: 10px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+/* Table Styling */
+.admin-table {
+    width: 100%;
+    border-collapse: collapse;
+}
+
+.admin-table th {
+    text-align: left;
+    color: #cbd5d5;
+    padding: 15px;
+    font-weight: 500;
+    border-bottom: 1px solid #f0f0f0;
+}
+
+.admin-table td {
+    padding: 15px;
+    color: #444;
+    border-bottom: 1px solid #f9f9f9;
+}
+
+.badge {
+    padding: 5px 15px;
+    border-radius: 10px;
+    font-size: 12px;
+}
+
+.badge.active {
+    background-color: #e8f4f1;
+    color: #5ba38e;
+}
+
+.badge.inactive {
+    background-color: #ffebeb;
+    color: #ff5c5c;
+}
+
+.btn-delete {
+    color: #ff5c5c;
+    cursor: pointer;
+}
+/* إخفاء النافذة في البداية */
+.modal-overlay {
+    display: none; 
+    position: fixed;
+    top: 0; left: 0;
+    width: 100%; height: 100%;
+    background: rgba(0, 0, 0, 0.4); /* الطبقة الرمادية اللي في الصورة */
+    justify-content: center;
+    align-items: center;
+    z-index: 1000;
+}
+
+.modal-content {
+    background: white;
+    padding: 30px;
+    border-radius: 15px;
+    width: 400px;
+    box-shadow: 0 5px 15px rgba(0,0,0,0.2);
+}
+
+.modal-content input {
+    width: 100%;
+    padding: 12px;
+    margin-bottom: 15px;
+    border: 1px solid #ddd;
+    border-radius: 8px;
+    outline: none;
+}
+
+.modal-buttons {
+    display: flex;
+    justify-content: space-around;
+    margin-top: 10px;
+}
+
+.btn-save-add {
+    background-color: #5ba38e; /* اللون الأخضر بتاعك */
+    color: white; border: none;
+    padding: 10px 30px; border-radius: 8px;
+    cursor: pointer;
+}
+
+.btn-cancel {
+    background: white;
+    color: #ff5c5c; /* اللون الأحمر للكانسل */
+    border: 1px solid #ff5c5c;
+    padding: 10px 30px; border-radius: 8px;
+    cursor: pointer;
+}
+/* تنسيق خاص بجدول الأتوبيسات */
+.data-table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-top: 20px;
+}
+
+.data-table th {
+    color: #cbd5d5; /* اللون الرمادي الفاتح للعناوين */
+    text-align: left;
+    padding: 15px;
+    font-size: 14px;
+    border-bottom: 1px solid #f0f0f0;
+}
+
+.data-table td {
+    padding: 15px;
+    color: #444;
+    border-bottom: 1px solid #f9f9f9;
+}
+
+/* لون الحالة النشطة (الأخضر المريح) */
+.badge.active {
+    background-color: #e8f4f1;
+    color: #5ba38e;
+    padding: 5px 15px;
+    border-radius: 10px;
+}
+
+/* لون الحالة غير النشطة (الأحمر الفاتح) */
+.badge.inactive {
+    background-color: #ffebeb;
+    color: #ff5c5c;
+    padding: 5px 15px;
+    border-radius: 10px;
+}
+/* تنظيم الصفحة ككل */
+.app-layout {
+    display: flex; /* بيخلي السايد بار جنب المحتوى بالظبط */
+    height: 100vh;
+    width: 100vw;
+    overflow: hidden;
+}
+
+/* السايد بار - لازم يثبت مكانه */
+.sidebar {
+    width: 250px;
+    min-width: 250px;
+    background: white;
+    border-right: 1px solid #eee;
+    display: flex;
+    flex-direction: column;
+    padding: 20px;
+}
+
+/* المحتوى الرئيسي - بياخد باقي المساحة */
+.main-body {
+    flex-grow: 1; /* بياخد كل المساحة الفاضية */
+    background-color: #f8fafa; /* لون فاتح مريح للعين */
+    padding: 30px;
+    overflow-y: auto; /* لو الجدول طويل يعمل سكرول لوحده */
+}
+
+/* تظبيط الجدول عشان ما يخرجش بره الشاشة */
+.table-section {
+    background: white;
+    border-radius: 15px;
+    padding: 20px;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.05);
+}
+
+.buses-table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-top: 20px;
+}
+
+.buses-table th, .buses-table td {
+    padding: 15px;
+    text-align: left;
+    border-bottom: 1px solid #f0f0f0;
+}
+.header-actions {
+    display: flex;
+    gap: 5px; /* بيعمل مسافة بين الزرارين والبحث */
+    align-items: center;
+}
+
+/* ستايل زرار التعيين الجديد */
+.btn-assign {
+    background-color: transparent;
+    color: #5ba38e; /* نفس درجة اللون الأخضر في الصورة */
+    border: 2px solid #5ba38e;
+    padding: 10px 20px;
+    border-radius: 12px; /* الحواف الدائرية */
+    font-weight: 600;
+    cursor: pointer;
+    transition: 0.3s;
+}
+
+.btn-assign:hover {
+    background-color: #5ba38e;
+    color: white;
+}
+
+/* ستايل زرار الإضافة الأصلي */
+.btn-add {
+    background-color: #5ba38e;
+    color: white;
+    border: none;
+    padding: 10px 20px;
+    border-radius: 10px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+/* الحاوية الأساسية */
+.table-actions {
+    display: flex;
+    justify-content: space-between; /* بيبعد البحث عن الأزرار */
+    align-items: center;
+    width: 100%;
+    padding: 10px 0;
+}
+
+/* أهم جزء: جروب الأزرار */
+.buttons-group {
+    display: flex; /* بيخليهم جنب بعض */
+    flex-direction: row; /* تأكيد الاتجاه الأفقي */
+    gap: 12px; /* المسافة اللي بينهم */
+    align-items: center;
+}
+
+/* ستايل زرار التعيين (الأخضر المفرغ) */
+.btn-assign {
+    background: transparent;
+    color: #5ba38e;
+    border: 1.5px solid #5ba38e;
+    padding: 10px 18px;
+    border-radius: 10px;
+    font-weight: 500;
+    white-space: nowrap; /* بيمنع الجملة تتكسر لسطرين */
+    cursor: pointer;
+}
+
+/* ستايل زرار الإضافة (الأخضر المليان) */
+.btn-add {
+    background: #5ba38e;
+    color: white;
+    border: none;
+    padding: 11px 20px;
+    border-radius: 10px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    white-space: nowrap;
+    cursor: pointer;
+}
+/* النافذة المنبثقة للتعيين */
+.modal-overlay {
+    display: none; /* مخفية في البداية */
+    position: fixed;
+    top: 0; left: 0;
+    width: 100%; height: 100%;
+    background: rgba(0, 0, 0, 0.4);
+    justify-content: center;
+    align-items: center;
+    z-index: 2000;
+}
+
+.modal-box.small-modal {
+    background: white;
+    padding: 40px;
+    border-radius: 15px;
+    width: 380px;
+    box-shadow: 0 5px 15px rgba(0,0,0,0.2);
+    text-align: center;
+}
+
+.modal-box input {
+    width: 100%;
+    padding: 12px;
+    margin-bottom: 20px;
+    border: 1px solid #ddd;
+    border-radius: 8px;
+    outline: none;
+    font-size: 14px;
+}
+
+.modal-footer {
+    display: flex;
+    justify-content: space-around;
+    gap: 15px;
+}
+
+.btn-assign-action {
+    background-color: #5ba38e; /* اللون الأخضر المميز لمشروعك */
+    color: white;
+    border: none;
+    padding: 10px 35px;
+    border-radius: 8px;
+    cursor: pointer;
+    font-weight: bold;
+}
+
+.btn-cancel {
+    background: white;
+    color: #ff5c5c;
+    border: 1px solid #ff5c5c;
+    padding: 10px 35px;
+    border-radius: 8px;
+    cursor: pointer;
+}

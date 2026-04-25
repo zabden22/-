@@ -1,0 +1,916 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>TransitWay - Settings</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="stylesheet" href="dashboard-style.css">
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+    <script src="i18n.js?v=1.1"></script>
+    
+    <style>
+        /* ═══════════════════════════════════════════
+           ⚙️ Settings Page — Premium Redesign
+           ═══════════════════════════════════════════ */
+
+        /* Settings Tabs Navigation */
+        .settings-tabs {
+            display: flex;
+            gap: 6px;
+            background: var(--bg-card);
+            padding: 6px;
+            border-radius: 16px;
+            border: 1px solid var(--border-color);
+            margin-bottom: 28px;
+        }
+        .settings-tab {
+            flex: 1;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
+            padding: 14px 20px;
+            border: none;
+            background: transparent;
+            color: var(--text-muted);
+            font-weight: 700;
+            font-size: 0.92rem;
+            border-radius: 12px;
+            cursor: pointer;
+            font-family: 'Plus Jakarta Sans', sans-serif;
+            transition: all 0.3s ease;
+            white-space: nowrap;
+        }
+        .settings-tab:hover {
+            background: rgba(86, 142, 116, 0.06);
+            color: var(--primary-color);
+        }
+        .settings-tab.active {
+            background: var(--primary-color);
+            color: #fff;
+            box-shadow: 0 4px 15px rgba(86, 142, 116, 0.3);
+        }
+        .settings-tab i { font-size: 1rem; }
+
+        /* Tab content */
+        .settings-tab-content {
+            display: none;
+            animation: tabFadeIn 0.4s ease;
+        }
+        .settings-tab-content.active { display: block; }
+        @keyframes tabFadeIn {
+            from { opacity: 0; transform: translateY(12px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        /* Section Cards */
+        .settings-section {
+            background: var(--bg-card);
+            border: 1px solid var(--border-color);
+            border-radius: 20px;
+            padding: 0;
+            margin-bottom: 24px;
+            overflow: hidden;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.03);
+        }
+        .settings-section-header {
+            display: flex;
+            align-items: center;
+            gap: 14px;
+            padding: 24px 30px 20px;
+            border-bottom: 1px solid var(--border-color);
+        }
+        .settings-section-header .ss-icon {
+            width: 42px; height: 42px;
+            border-radius: 12px;
+            display: flex; align-items: center; justify-content: center;
+            font-size: 1.1rem;
+            flex-shrink: 0;
+        }
+        .ss-icon.ss-profile { background: rgba(86,142,116,0.1); color: #568e74; }
+        .ss-icon.ss-appearance { background: rgba(59,130,246,0.1); color: #3b82f6; }
+        .ss-icon.ss-notifications { background: rgba(245,158,11,0.1); color: #f59e0b; }
+        .ss-icon.ss-security { background: rgba(239,68,68,0.1); color: #ef4444; }
+        .ss-icon.ss-system { background: rgba(139,92,246,0.1); color: #8b5cf6; }
+        .ss-icon.ss-danger { background: rgba(239,68,68,0.08); color: #ef4444; }
+
+        .settings-section-header h3 {
+            font-size: 1.1rem;
+            font-weight: 800;
+            color: var(--text-main);
+            margin: 0;
+        }
+        .settings-section-header p {
+            font-size: 0.82rem;
+            color: var(--text-muted);
+            font-weight: 600;
+            margin: 2px 0 0;
+        }
+        .settings-section-body { padding: 24px 30px 28px; }
+
+        /* Profile Card (Hero Style) */
+        .profile-hero {
+            display: flex;
+            align-items: center;
+            gap: 28px;
+            padding: 32px;
+            background: linear-gradient(135deg, rgba(86,142,116,0.08) 0%, rgba(86,142,116,0.02) 100%);
+            border-radius: 20px;
+            border: 1px solid var(--border-color);
+            margin-bottom: 24px;
+            position: relative;
+            overflow: hidden;
+        }
+        .profile-hero::before {
+            content: '';
+            position: absolute;
+            top: -50%; right: -20%;
+            width: 300px; height: 300px;
+            background: radial-gradient(circle, rgba(86,142,116,0.06) 0%, transparent 70%);
+            border-radius: 50%;
+        }
+        .profile-hero-avatar {
+            position: relative;
+            flex-shrink: 0;
+        }
+        .profile-hero-avatar img {
+            width: 100px; height: 100px;
+            border-radius: 50%;
+            border: 4px solid var(--primary-color);
+            box-shadow: 0 8px 25px rgba(86,142,116,0.2);
+            object-fit: cover;
+        }
+        .profile-hero-avatar .avatar-status {
+            position: absolute;
+            bottom: 4px; right: 4px;
+            width: 20px; height: 20px;
+            border-radius: 50%;
+            background: #22c55e;
+            border: 3px solid var(--bg-card);
+        }
+        .profile-hero-info { flex: 1; z-index: 1; }
+        .profile-hero-info h2 {
+            font-size: 1.6rem; font-weight: 800;
+            color: var(--text-main); margin: 0 0 4px;
+        }
+        .profile-hero-info .hero-subtitle {
+            color: var(--text-muted); font-weight: 600;
+            font-size: 0.9rem; margin: 0 0 12px;
+        }
+        .profile-hero-badges {
+            display: flex; gap: 8px; flex-wrap: wrap;
+        }
+        .hero-badge {
+            padding: 5px 14px;
+            border-radius: 20px;
+            font-size: 0.78rem;
+            font-weight: 800;
+            text-transform: uppercase;
+            letter-spacing: 0.3px;
+        }
+        .badge-role { background: rgba(86,142,116,0.1); color: var(--primary-color); }
+        .badge-active { background: rgba(34,197,94,0.1); color: #22c55e; }
+        .badge-id { background: rgba(59,130,246,0.1); color: #3b82f6; }
+
+        /* Form Grid */
+        .settings-form-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+        }
+        .settings-input-group {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+        .settings-input-group.full-width {
+            grid-column: 1 / -1;
+        }
+        .settings-input-group label {
+            font-size: 0.8rem;
+            font-weight: 700;
+            color: var(--text-muted);
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+        .settings-input-group label i {
+            font-size: 0.7rem;
+            color: var(--primary-color);
+        }
+        .settings-input-group input,
+        .settings-input-group select {
+            padding: 14px 18px;
+            border-radius: 12px;
+            border: 1.5px solid var(--border-color);
+            background: var(--bg-main);
+            color: var(--text-main);
+            outline: none;
+            font-size: 0.95rem;
+            font-weight: 600;
+            font-family: 'Plus Jakarta Sans', sans-serif;
+            transition: all 0.3s ease;
+        }
+        .settings-input-group input:focus,
+        .settings-input-group select:focus {
+            border-color: var(--primary-color);
+            box-shadow: 0 0 0 4px rgba(86,142,116,0.1);
+        }
+        .settings-input-group input[readonly] {
+            opacity: 0.6;
+            cursor: not-allowed;
+        }
+
+        /* Preference Row */
+        .pref-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 18px 22px;
+            background: var(--bg-main);
+            border-radius: 14px;
+            margin-bottom: 14px;
+            border: 1px solid transparent;
+            transition: all 0.3s ease;
+        }
+        .pref-row:last-child { margin-bottom: 0; }
+        .pref-row:hover { border-color: var(--border-color); }
+        .pref-row-left {
+            display: flex;
+            align-items: center;
+            gap: 14px;
+        }
+        .pref-row-icon {
+            width: 40px; height: 40px;
+            border-radius: 10px;
+            display: flex; align-items: center; justify-content: center;
+            font-size: 1rem;
+            flex-shrink: 0;
+        }
+        .pref-row-text h4 {
+            font-size: 0.95rem;
+            font-weight: 800;
+            color: var(--text-main);
+            margin: 0 0 2px;
+        }
+        .pref-row-text p {
+            font-size: 0.78rem;
+            color: var(--text-muted);
+            font-weight: 600;
+            margin: 0;
+        }
+        .pref-row select {
+            padding: 10px 16px;
+            border-radius: 10px;
+            border: 1.5px solid var(--border-color);
+            background: var(--bg-card);
+            color: var(--text-main);
+            font-weight: 700;
+            font-size: 0.88rem;
+            font-family: 'Plus Jakarta Sans', sans-serif;
+            cursor: pointer;
+            outline: none;
+            transition: all 0.3s ease;
+            min-width: 150px;
+        }
+        .pref-row select:focus {
+            border-color: var(--primary-color);
+            box-shadow: 0 0 0 3px rgba(86,142,116,0.1);
+        }
+
+        /* Toggle Switch */
+        .toggle-switch {
+            position: relative;
+            width: 50px; height: 28px;
+            cursor: pointer;
+        }
+        .toggle-switch input { display: none; }
+        .toggle-slider {
+            position: absolute; top: 0; left: 0; right: 0; bottom: 0;
+            background: var(--border-color);
+            border-radius: 28px;
+            transition: all 0.3s ease;
+        }
+        .toggle-slider::before {
+            content: '';
+            position: absolute;
+            left: 3px; bottom: 3px;
+            width: 22px; height: 22px;
+            border-radius: 50%;
+            background: white;
+            transition: all 0.3s ease;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.15);
+        }
+        .toggle-switch input:checked + .toggle-slider {
+            background: var(--primary-color);
+        }
+        .toggle-switch input:checked + .toggle-slider::before {
+            transform: translateX(22px);
+        }
+
+        /* Save Button Row */
+        .settings-save-row {
+            display: flex;
+            justify-content: flex-end;
+            gap: 12px;
+            margin-top: 24px;
+            padding-top: 20px;
+            border-top: 1px solid var(--border-color);
+        }
+        .btn-save-settings {
+            background: var(--primary-color);
+            color: white;
+            border: none;
+            padding: 14px 32px;
+            border-radius: 12px;
+            font-weight: 800;
+            font-size: 0.95rem;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-family: 'Plus Jakarta Sans', sans-serif;
+        }
+        .btn-save-settings:hover {
+            filter: brightness(1.1);
+            transform: translateY(-2px);
+            box-shadow: 0 8px 25px rgba(86,142,116,0.25);
+        }
+        .btn-cancel-settings {
+            background: transparent;
+            border: 2px solid var(--border-color);
+            color: var(--text-muted);
+            padding: 14px 28px;
+            border-radius: 12px;
+            font-weight: 800;
+            font-size: 0.95rem;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            font-family: 'Plus Jakarta Sans', sans-serif;
+        }
+        .btn-cancel-settings:hover {
+            border-color: var(--text-muted);
+            color: var(--text-main);
+        }
+
+        /* Danger Zone */
+        .danger-zone {
+            border: 1.5px solid rgba(239,68,68,0.2);
+            background: rgba(239,68,68,0.02);
+        }
+        .danger-zone .settings-section-header {
+            border-bottom-color: rgba(239,68,68,0.15);
+        }
+        .danger-action {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 18px 22px;
+            border-radius: 14px;
+            background: rgba(239,68,68,0.04);
+            border: 1px solid rgba(239,68,68,0.1);
+            margin-bottom: 14px;
+        }
+        .danger-action:last-child { margin-bottom: 0; }
+        .danger-action-info h4 {
+            font-size: 0.95rem;
+            font-weight: 800;
+            color: var(--text-main);
+            margin: 0 0 3px;
+        }
+        .danger-action-info p {
+            font-size: 0.78rem;
+            color: var(--text-muted);
+            font-weight: 600;
+            margin: 0;
+        }
+        .btn-danger {
+            background: #ef4444;
+            color: white;
+            border: none;
+            padding: 11px 24px;
+            border-radius: 10px;
+            font-weight: 800;
+            font-size: 0.88rem;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            display: flex;
+            align-items: center;
+            gap: 7px;
+            font-family: 'Plus Jakarta Sans', sans-serif;
+            white-space: nowrap;
+        }
+        .btn-danger:hover {
+            filter: brightness(1.1);
+            transform: translateY(-1px);
+            box-shadow: 0 5px 15px rgba(239,68,68,0.25);
+        }
+
+        /* System Info Grid */
+        .system-info-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 14px;
+        }
+        .sys-info-card {
+            background: var(--bg-main);
+            border: 1px solid var(--border-color);
+            border-radius: 14px;
+            padding: 18px;
+            display: flex;
+            align-items: center;
+            gap: 14px;
+            transition: all 0.3s ease;
+        }
+        .sys-info-card:hover {
+            border-color: var(--primary-color);
+            transform: translateY(-2px);
+        }
+        .sys-info-icon {
+            width: 42px; height: 42px;
+            border-radius: 10px;
+            display: flex; align-items: center; justify-content: center;
+            font-size: 1rem;
+            flex-shrink: 0;
+        }
+        .sys-info-text h4 {
+            font-size: 0.78rem;
+            font-weight: 700;
+            color: var(--text-muted);
+            text-transform: uppercase;
+            letter-spacing: 0.4px;
+            margin: 0 0 4px;
+        }
+        .sys-info-text p {
+            font-size: 0.95rem;
+            font-weight: 800;
+            color: var(--text-main);
+            margin: 0;
+        }
+
+        /* Responsive */
+        @media (max-width: 768px) {
+            .settings-tabs { flex-wrap: wrap; }
+            .settings-tab { flex: unset; padding: 10px 16px; font-size: 0.82rem; }
+            .settings-tab span { display: none; }
+            .profile-hero { flex-direction: column; text-align: center; }
+            .profile-hero-badges { justify-content: center; }
+            .settings-form-grid { grid-template-columns: 1fr; }
+            .settings-section-body { padding: 20px; }
+            .danger-action { flex-direction: column; gap: 12px; text-align: center; }
+        }
+        @media (max-width: 480px) {
+            .settings-tabs { gap: 4px; padding: 4px; }
+            .profile-hero { padding: 22px; }
+            .profile-hero-avatar img { width: 80px; height: 80px; }
+        }
+    </style>
+    <script src="user-dropdown.js"></script>
+</head>
+<body>
+
+    <div class="dashboard-wrapper">
+        <aside class="sidebar">
+            <div class="side-logo">
+                <img src="11fc662484192f59b3906d1d5669228f9f707453.png" alt="TransitWay Logo">
+            </div>
+            <nav class="side-nav">
+                <a href="dashboard.html" data-i18n="dashboard"><i class="fas fa-th-large"></i> Dashboard</a>
+                <a href="map.html" data-i18n="live_map"><i class="fas fa-map-marked-alt"></i> Live Map</a>
+                <a href="admins.html" data-i18n="admins"><i class="fas fa-user-shield"></i> Admins</a>
+                <a href="buses.html" data-i18n="buses"><i class="fas fa-bus"></i> Buses</a>
+                <a href="drivers.html" data-i18n="drivers"><i class="fas fa-users"></i> Drivers</a>
+                <a href="stations.html" data-i18n="stations"><i class="fas fa-map-marker-alt"></i> Stations</a>
+                <a href="tickets.html" data-i18n="tickets"><i class="fas fa-ticket-alt"></i> Tickets</a>
+                <a href="routes.html" data-i18n="routes"><i class="fas fa-route"></i> Routes</a>
+                <a href="reports.html" data-i18n="reports"><i class="fas fa-exclamation-triangle"></i> Reports</a>
+                <a href="settings.html" class="active" data-i18n="settings"><i class="fas fa-cog"></i> Settings</a>
+            </nav>
+           
+        </aside>
+
+        <main class="main-content">
+            <header class="top-bar">
+                <h2 class="path-title" data-i18n="settings">Settings</h2>
+                <div class="top-controls">
+                    <div class="user-info">
+                        <i class="fas fa-user-circle"></i>
+                        <span id="topBarName">Loading...</span>
+                        <i class="fas fa-chevron-down arrow-icon"></i>
+                    </div>
+                </div>
+            </header>
+
+            <!-- ===== Settings Tabs ===== -->
+            <div class="settings-tabs" id="settingsTabs">
+                <button class="settings-tab active" data-tab="profile">
+                    <i class="fas fa-user-circle"></i> <span>Profile</span>
+                </button>
+                <button class="settings-tab" data-tab="appearance">
+                    <i class="fas fa-palette"></i> <span>Appearance</span>
+                </button>
+                <button class="settings-tab" data-tab="notifications">
+                    <i class="fas fa-bell"></i> <span>Notifications</span>
+                </button>
+                <button class="settings-tab" data-tab="system">
+                    <i class="fas fa-server"></i> <span>System</span>
+                </button>
+                <button class="settings-tab" data-tab="security">
+                    <i class="fas fa-shield-alt"></i> <span>Security</span>
+                </button>
+            </div>
+
+            <!-- ═══════════════════════════════════════
+                 TAB 1: Profile
+                 ═══════════════════════════════════════ -->
+            <div class="settings-tab-content active" id="tab-profile">
+                <!-- Profile Hero Card -->
+                <div class="profile-hero">
+                    <div class="profile-hero-avatar">
+                        <img id="profileAvatar" src="https://ui-avatars.com/api/?name=Admin&background=568e74&color=fff&size=150" alt="Admin Avatar">
+                        <div class="avatar-status"></div>
+                    </div>
+                    <div class="profile-hero-info">
+                        <h2 id="sideProfileName">Admin</h2>
+                        <p class="hero-subtitle">System Administrator — Ministry of Public Transport</p>
+                        <div class="profile-hero-badges">
+                            <span class="hero-badge badge-role"><i class="fas fa-crown" style="margin-right:4px;"></i> Super Admin</span>
+                            <span class="hero-badge badge-active"><i class="fas fa-circle" style="margin-right:4px; font-size:0.5rem;"></i> Online</span>
+                            <span class="hero-badge badge-id" id="adminIdBadge">#ADM-001</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Profile Form -->
+                <div class="settings-section">
+                    <div class="settings-section-header">
+                        <div class="ss-icon ss-profile"><i class="fas fa-user-edit"></i></div>
+                        <div>
+                            <h3>Personal Information</h3>
+                            <p>Update your personal details and contact information</p>
+                        </div>
+                    </div>
+                    <div class="settings-section-body">
+                        <form id="profileForm">
+                            <div class="settings-form-grid">
+                                <div class="settings-input-group">
+                                    <label><i class="fas fa-user"></i> Display Name</label>
+                                    <input type="text" id="adminNameInput" placeholder="Enter your display name" required>
+                                </div>
+                                <div class="settings-input-group">
+                                    <label><i class="fas fa-envelope"></i> Email Address</label>
+                                    <input type="email" id="adminEmailInput" value="admin@transitway.gov.eg" readonly>
+                                </div>
+                                <div class="settings-input-group">
+                                    <label><i class="fas fa-phone"></i> Phone Number</label>
+                                    <input type="tel" id="adminPhoneInput" value="01023456789">
+                                </div>
+                                <div class="settings-input-group">
+                                    <label><i class="fas fa-map-marker-alt"></i> Location</label>
+                                    <input type="text" id="adminLocationInput" value="Cairo, Egypt">
+                                </div>
+                                <div class="settings-input-group">
+                                    <label><i class="fas fa-building"></i> Department</label>
+                                    <input type="text" id="adminDeptInput" value="Fleet Operations" placeholder="Department">
+                                </div>
+                                <div class="settings-input-group">
+                                    <label><i class="fas fa-id-badge"></i> Employee ID</label>
+                                    <input type="text" value="ADM-001" readonly>
+                                </div>
+                            </div>
+                            <div class="settings-save-row">
+                                <button type="button" class="btn-cancel-settings" onclick="location.reload()">Cancel</button>
+                                <button type="submit" class="btn-save-settings">
+                                    <i class="fas fa-save"></i> Save Changes
+                                </button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            </div>
+
+            <!-- ═══════════════════════════════════════
+                 TAB 2: Appearance
+                 ═══════════════════════════════════════ -->
+            <div class="settings-tab-content" id="tab-appearance">
+                <div class="settings-section">
+                    <div class="settings-section-header">
+                        <div class="ss-icon ss-appearance"><i class="fas fa-palette"></i></div>
+                        <div>
+                            <h3>Appearance & Language</h3>
+                            <p>Customize how TransitWay looks and feels</p>
+                        </div>
+                    </div>
+                    <div class="settings-section-body">
+                        <div class="pref-row">
+                            <div class="pref-row-left">
+                                <div class="pref-row-icon" style="background:rgba(59,130,246,0.1); color:#3b82f6;"><i class="fas fa-moon"></i></div>
+                                <div class="pref-row-text">
+                                    <h4>Theme</h4>
+                                    <p>Choose between light and dark mode</p>
+                                </div>
+                            </div>
+                            <select id="themeSelect">
+                                <option value="light">☀️ Light Mode</option>
+                                <option value="dark">🌙 Dark Mode</option>
+                            </select>
+                        </div>
+
+                        <div class="pref-row">
+                            <div class="pref-row-left">
+                                <div class="pref-row-icon" style="background:rgba(86,142,116,0.1); color:#568e74;"><i class="fas fa-globe"></i></div>
+                                <div class="pref-row-text">
+                                    <h4>Language</h4>
+                                    <p>Select your preferred display language</p>
+                                </div>
+                            </div>
+                            <select id="langSelect">
+                                <option value="en">🇬🇧 English</option>
+                                <option value="ar">🇪🇬 العربية</option>
+                            </select>
+                        </div>
+
+                        <div class="pref-row">
+                            <div class="pref-row-left">
+                                <div class="pref-row-icon" style="background:rgba(139,92,246,0.1); color:#8b5cf6;"><i class="fas fa-text-height"></i></div>
+                                <div class="pref-row-text">
+                                    <h4>Compact Mode</h4>
+                                    <p>Reduce spacing for denser data display</p>
+                                </div>
+                            </div>
+                            <label class="toggle-switch">
+                                <input type="checkbox" id="compactToggle">
+                                <span class="toggle-slider"></span>
+                            </label>
+                        </div>
+
+                        <div class="pref-row">
+                            <div class="pref-row-left">
+                                <div class="pref-row-icon" style="background:rgba(245,158,11,0.1); color:#f59e0b;"><i class="fas fa-magic"></i></div>
+                                <div class="pref-row-text">
+                                    <h4>Animations</h4>
+                                    <p>Enable smooth UI transitions and effects</p>
+                                </div>
+                            </div>
+                            <label class="toggle-switch">
+                                <input type="checkbox" id="animToggle" checked>
+                                <span class="toggle-slider"></span>
+                            </label>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- ═══════════════════════════════════════
+                 TAB 3: Notifications
+                 ═══════════════════════════════════════ -->
+            <div class="settings-tab-content" id="tab-notifications">
+                <div class="settings-section">
+                    <div class="settings-section-header">
+                        <div class="ss-icon ss-notifications"><i class="fas fa-bell"></i></div>
+                        <div>
+                            <h3>Notification Preferences</h3>
+                            <p>Control which alerts and updates you receive</p>
+                        </div>
+                    </div>
+                    <div class="settings-section-body">
+                        <div class="pref-row">
+                            <div class="pref-row-left">
+                                <div class="pref-row-icon" style="background:rgba(239,68,68,0.1); color:#ef4444;"><i class="fas fa-exclamation-triangle"></i></div>
+                                <div class="pref-row-text">
+                                    <h4>Complaint Reports</h4>
+                                    <p>Get notified when new bus complaints are filed</p>
+                                </div>
+                            </div>
+                            <label class="toggle-switch">
+                                <input type="checkbox" checked>
+                                <span class="toggle-slider"></span>
+                            </label>
+                        </div>
+
+                        <div class="pref-row">
+                            <div class="pref-row-left">
+                                <div class="pref-row-icon" style="background:rgba(59,130,246,0.1); color:#3b82f6;"><i class="fas fa-bus"></i></div>
+                                <div class="pref-row-text">
+                                    <h4>Bus Status Changes</h4>
+                                    <p>Alerts when buses go inactive or return to service</p>
+                                </div>
+                            </div>
+                            <label class="toggle-switch">
+                                <input type="checkbox" checked>
+                                <span class="toggle-slider"></span>
+                            </label>
+                        </div>
+
+                        <div class="pref-row">
+                            <div class="pref-row-left">
+                                <div class="pref-row-icon" style="background:rgba(86,142,116,0.1); color:#568e74;"><i class="fas fa-ticket-alt"></i></div>
+                                <div class="pref-row-text">
+                                    <h4>Ticket Sales Milestones</h4>
+                                    <p>Notifications when daily sales targets are reached</p>
+                                </div>
+                            </div>
+                            <label class="toggle-switch">
+                                <input type="checkbox">
+                                <span class="toggle-slider"></span>
+                            </label>
+                        </div>
+
+                        <div class="pref-row">
+                            <div class="pref-row-left">
+                                <div class="pref-row-icon" style="background:rgba(139,92,246,0.1); color:#8b5cf6;"><i class="fas fa-user-plus"></i></div>
+                                <div class="pref-row-text">
+                                    <h4>New Driver Registration</h4>
+                                    <p>Get notified when new drivers join the system</p>
+                                </div>
+                            </div>
+                            <label class="toggle-switch">
+                                <input type="checkbox" checked>
+                                <span class="toggle-slider"></span>
+                            </label>
+                        </div>
+
+                        <div class="pref-row">
+                            <div class="pref-row-left">
+                                <div class="pref-row-icon" style="background:rgba(245,158,11,0.1); color:#f59e0b;"><i class="fas fa-chart-bar"></i></div>
+                                <div class="pref-row-text">
+                                    <h4>Daily Summary Report</h4>
+                                    <p>Receive end-of-day operational summary</p>
+                                </div>
+                            </div>
+                            <label class="toggle-switch">
+                                <input type="checkbox">
+                                <span class="toggle-slider"></span>
+                            </label>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- ═══════════════════════════════════════
+                 TAB 4: System
+                 ═══════════════════════════════════════ -->
+            <div class="settings-tab-content" id="tab-system">
+                <div class="settings-section">
+                    <div class="settings-section-header">
+                        <div class="ss-icon ss-system"><i class="fas fa-server"></i></div>
+                        <div>
+                            <h3>System Information</h3>
+                            <p>Technical details about the TransitWay platform</p>
+                        </div>
+                    </div>
+                    <div class="settings-section-body">
+                        <div class="system-info-grid">
+                            <div class="sys-info-card">
+                                <div class="sys-info-icon" style="background:rgba(86,142,116,0.1); color:#568e74;"><i class="fas fa-code-branch"></i></div>
+                                <div class="sys-info-text">
+                                    <h4>Version</h4>
+                                    <p>v2.5.0</p>
+                                </div>
+                            </div>
+                            <div class="sys-info-card">
+                                <div class="sys-info-icon" style="background:rgba(59,130,246,0.1); color:#3b82f6;"><i class="fas fa-cloud"></i></div>
+                                <div class="sys-info-text">
+                                    <h4>API Status</h4>
+                                    <p id="apiStatusText">Checking...</p>
+                                </div>
+                            </div>
+                            <div class="sys-info-card">
+                                <div class="sys-info-icon" style="background:rgba(139,92,246,0.1); color:#8b5cf6;"><i class="fas fa-database"></i></div>
+                                <div class="sys-info-text">
+                                    <h4>Backend</h4>
+                                    <p>ASP.NET Core</p>
+                                </div>
+                            </div>
+                            <div class="sys-info-card">
+                                <div class="sys-info-icon" style="background:rgba(245,158,11,0.1); color:#f59e0b;"><i class="fas fa-clock"></i></div>
+                                <div class="sys-info-text">
+                                    <h4>Uptime</h4>
+                                    <p id="uptimeText">—</p>
+                                </div>
+                            </div>
+                            <div class="sys-info-card">
+                                <div class="sys-info-icon" style="background:rgba(34,197,94,0.1); color:#22c55e;"><i class="fas fa-wifi"></i></div>
+                                <div class="sys-info-text">
+                                    <h4>Connection</h4>
+                                    <p id="connectionText">Online</p>
+                                </div>
+                            </div>
+                            <div class="sys-info-card">
+                                <div class="sys-info-icon" style="background:rgba(100,116,139,0.1); color:#64748b;"><i class="fas fa-calendar-check"></i></div>
+                                <div class="sys-info-text">
+                                    <h4>Last Updated</h4>
+                                    <p id="lastUpdateText">—</p>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="pref-row" style="margin-top: 20px;">
+                            <div class="pref-row-left">
+                                <div class="pref-row-icon" style="background:rgba(86,142,116,0.1); color:#568e74;"><i class="fas fa-sync-alt"></i></div>
+                                <div class="pref-row-text">
+                                    <h4>Auto-Refresh Dashboard</h4>
+                                    <p>Automatically refresh dashboard data every 15 seconds</p>
+                                </div>
+                            </div>
+                            <label class="toggle-switch">
+                                <input type="checkbox" checked>
+                                <span class="toggle-slider"></span>
+                            </label>
+                        </div>
+
+                        <div class="pref-row">
+                            <div class="pref-row-left">
+                                <div class="pref-row-icon" style="background:rgba(59,130,246,0.1); color:#3b82f6;"><i class="fas fa-map"></i></div>
+                                <div class="pref-row-text">
+                                    <h4>Live Map Auto-Track</h4>
+                                    <p>Automatically follow moving buses on the live map</p>
+                                </div>
+                            </div>
+                            <label class="toggle-switch">
+                                <input type="checkbox" checked>
+                                <span class="toggle-slider"></span>
+                            </label>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- ═══════════════════════════════════════
+                 TAB 5: Security & Account
+                 ═══════════════════════════════════════ -->
+            <div class="settings-tab-content" id="tab-security">
+                <!-- Password Change -->
+                <div class="settings-section">
+                    <div class="settings-section-header">
+                        <div class="ss-icon ss-security"><i class="fas fa-lock"></i></div>
+                        <div>
+                            <h3>Change Password</h3>
+                            <p>Update your account password for security</p>
+                        </div>
+                    </div>
+                    <div class="settings-section-body">
+                        <div class="settings-form-grid">
+                            <div class="settings-input-group">
+                                <label><i class="fas fa-lock"></i> Current Password</label>
+                                <input type="password" id="currentPassword" placeholder="Enter current password">
+                            </div>
+                            <div class="settings-input-group">
+                                <label><i class="fas fa-key"></i> New Password</label>
+                                <input type="password" id="newPassword" placeholder="Enter new password">
+                            </div>
+                            <div class="settings-input-group">
+                                <label><i class="fas fa-check-double"></i> Confirm Password</label>
+                                <input type="password" id="confirmPassword" placeholder="Confirm new password">
+                            </div>
+                        </div>
+                        <div class="settings-save-row">
+                            <button type="button" class="btn-save-settings" onclick="handlePasswordChange()">
+                                <i class="fas fa-key"></i> Update Password
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Danger Zone -->
+                <div class="settings-section danger-zone">
+                    <div class="settings-section-header">
+                        <div class="ss-icon ss-danger"><i class="fas fa-exclamation-circle"></i></div>
+                        <div>
+                            <h3 style="color:#ef4444;">Danger Zone</h3>
+                            <p>Irreversible and destructive actions</p>
+                        </div>
+                    </div>
+                    <div class="settings-section-body">
+                        <div class="danger-action">
+                            <div class="danger-action-info">
+                                <h4><i class="fas fa-sign-out-alt" style="color:#ef4444; margin-right:6px;"></i> Log Out</h4>
+                                <p>Sign out of your admin account on this device</p>
+                            </div>
+                            <button class="btn-danger" onclick="confirmLogout()">
+                                <i class="fas fa-sign-out-alt"></i> Log Out
+                            </button>
+                        </div>
+                        <div class="danger-action">
+                            <div class="danger-action-info">
+                                <h4><i class="fas fa-broom" style="color:#ef4444; margin-right:6px;"></i> Clear Local Data</h4>
+                                <p>Reset all cached preferences and local settings</p>
+                            </div>
+                            <button class="btn-danger" onclick="confirmClearData()">
+                                <i class="fas fa-eraser"></i> Clear Data
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+        </main>
+    </div>
+
+    <script src="settings-logic.js?v=2.0"></script>
+</body>
+</html>
