@@ -35,19 +35,33 @@
 
         <main class="main-content">
             <header class="top-bar">
-                <h2 class="path-title">Dashboard</h2>
+                <div class="top-left" style="display: flex; align-items: center; gap: 15px;">
+                    <button class="hamburger-btn" id="sidebarToggle" style="background: var(--bg-card); border: 1px solid var(--border-color); width: 40px; height: 40px; border-radius: 10px; color: var(--text-main); cursor: pointer; display: flex; align-items: center; justify-content: center; font-size: 1.1rem; transition: 0.3s;">
+                        <i class="fas fa-bars"></i>
+                    </button>
+                    <h2 class="path-title" style="margin-bottom: 0;">Dashboard</h2>
+                </div>
                 <div class="top-controls">
-
                     <div class="user-info">
-                        <i class="fas fa-user-circle"></i>
+                        <img src="https://ui-avatars.com/api/?name=Moscow&background=random&color=fff&rounded=true&bold=true&size=32" class="top-avatar" style="width: 32px; height: 32px; border-radius: 50%; border: 2px solid var(--primary-color);">
                         <span id="topBarName">Loading...</span>
                         <i class="fas fa-chevron-down arrow-icon"></i>
                     </div>
                 </div>
             </header>
 
-            <div class="welcome-section">
-                <h1 id="welcomeMessage">Hello Loading... !</h1>
+            <!-- Premium Welcome Banner -->
+            <div class="welcome-banner">
+                <div class="wb-content">
+                    <div class="wb-avatar-wrap">
+                        <img src="https://ui-avatars.com/api/?name=Moscow&background=random&color=fff&rounded=true&bold=true&size=80" id="welcomeAvatar">
+                    </div>
+                    <div class="wb-text">
+                        <h1 id="welcomeMessage">Welcome Back, Loading...!</h1>
+                        <p data-i18n-text="Your Strategic Command Center for Transit Excellence.">Your Strategic Command Center for Transit Excellence.</p>
+                    </div>
+                </div>
+                <div class="wb-glass-effect"></div>
             </div>
 
             <!-- ===== Calendar & Period Filter ===== -->
@@ -225,5 +239,6 @@
     </div>
 
     <script src="dashboard-logic.js?v=2.0"></script>
+    <script src="notifications.js"></script>
 </body>
 </html>

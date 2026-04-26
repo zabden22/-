@@ -10,17 +10,25 @@
 
         const adminName = localStorage.getItem('activeAdminName') || 'Admin';
 
-        // Set the top bar name
+        // Set the top bar name and avatar
         const nameSpan = userInfo.querySelector('#topBarName');
+        const topAvatarImg = userInfo.querySelector('.top-avatar');
         if (nameSpan) nameSpan.innerText = adminName;
+        
+        const savedPhoto = localStorage.getItem('activeAdminPhoto');
+        if (topAvatarImg && savedPhoto) {
+            topAvatarImg.src = savedPhoto;
+        }
 
         // Inject dropdown HTML
         const dropdown = document.createElement('div');
         dropdown.className = 'user-dropdown';
         dropdown.id = 'userDropdown';
+        const avatarSrc = savedPhoto || `https://ui-avatars.com/api/?name=${encodeURIComponent(adminName)}&background=568e74&color=fff&size=80&bold=true`;
+        
         dropdown.innerHTML = `
             <div class="ud-header">
-                <img class="ud-avatar" src="https://ui-avatars.com/api/?name=${encodeURIComponent(adminName)}&background=568e74&color=fff&size=80&bold=true" alt="${adminName}">
+                <img class="ud-avatar" src="${avatarSrc}" alt="${adminName}">
                 <div>
                     <p class="ud-name">${adminName}</p>
                     <p class="ud-role">System Administrator</p>
@@ -40,6 +48,16 @@
             userInfo.classList.toggle('open');
             dropdown.classList.toggle('show');
         });
+
+        // Sidebar Toggle Logic
+        const sidebarToggle = document.getElementById('sidebarToggle');
+        const sidebar = document.querySelector('.sidebar');
+        if (sidebarToggle && sidebar) {
+            sidebarToggle.addEventListener('click', (e) => {
+                e.stopPropagation();
+                sidebar.classList.toggle('collapsed');
+            });
+        }
 
         // Close on outside click
         document.addEventListener('click', () => {

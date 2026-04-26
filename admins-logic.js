@@ -3,7 +3,11 @@ document.addEventListener('DOMContentLoaded', () => {
     // 1. Theme & Name
     const adminName = localStorage.getItem('activeAdminName') || 'Admin';
     const topBarName = document.getElementById('topBarName');
+    const topAvatar = document.querySelector('.top-avatar');
+    const savedPhoto = localStorage.getItem('activeAdminPhoto');
+
     if (topBarName) topBarName.innerText = adminName;
+    if (topAvatar && savedPhoto) topAvatar.src = savedPhoto;
 
     let currentTheme = localStorage.getItem('siteTheme') || 'light';
     document.documentElement.setAttribute('data-theme', currentTheme);
@@ -57,6 +61,16 @@ document.addEventListener('DOMContentLoaded', () => {
             console.warn('Using mock admins. Reason:', e.message);
             adminsData = mapMock(mockAdmins);
         }
+
+        // --- MERGE LOCAL STORAGE ADMINS ---
+        const localAdmins = JSON.parse(localStorage.getItem('addedAdmins') || '[]');
+        if (localAdmins.length > 0) {
+            // Filter out any that might already be in the list (by ID or Email)
+            const existingEmails = new Set(adminsData.map(a => a.email.toLowerCase()));
+            const toAdd = localAdmins.filter(a => !existingEmails.has(a.email.toLowerCase()));
+            adminsData = [...adminsData, ...toAdd];
+        }
+
         renderCards(adminsData);
     }
 
@@ -93,12 +107,15 @@ document.addEventListener('DOMContentLoaded', () => {
             const roleStyle = roleColors[admin.role] || roleColors['Admin'];
             const roleLabel = admin.role === 'SuperAdmin' ? 'Super Admin' : admin.role;
 
+            const isMe = admin.name === adminName || admin.email === localStorage.getItem('activeAdminEmail');
+            const avatarSrc = (isMe && savedPhoto) ? savedPhoto : `https://ui-avatars.com/api/?name=${encodeURIComponent(admin.name)}&background=568e74&color=fff&size=100&bold=true`;
+
             const card = document.createElement('div');
             card.className = 'admin-card';
             card.innerHTML = `
                 <span class="admin-card-status ${isActive ? 'active' : 'inactive'}">${admin.status}</span>
                 <div class="admin-card-header">
-                    <img class="admin-card-avatar" src="https://ui-avatars.com/api/?name=${encodeURIComponent(admin.name)}&background=568e74&color=fff&size=100&bold=true" alt="${admin.name}">
+                    <img class="admin-card-avatar" src="${avatarSrc}" alt="${admin.name}">
                     <div>
                         <div class="admin-card-name">${admin.name}</div>
                         <div class="admin-card-id">${admin.code}</div>
@@ -195,16 +212,16 @@ document.addEventListener('DOMContentLoaded', () => {
             e.preventDefault();
             if (!isSuperAdmin) return;
 
-            const inputs = addAdminForm.querySelectorAll('input');
             const btn = e.target.querySelector('button[type="submit"]');
             btn.disabled = true;
             btn.innerText = 'Processing...';
 
+            const formData = new FormData(addAdminForm);
             const payload = {
-                fullName: inputs[0].value.trim(),
-                email: inputs[1].value.trim(),
-                phoneNumber: inputs[2].value.trim(),
-                password: inputs[3].value.trim()
+                fullName: formData.get('fullName').trim(),
+                email: formData.get('email').trim(),
+                phoneNumber: formData.get('phoneNumber').trim(),
+                password: formData.get('password').trim()
             };
 
             try {
@@ -214,31 +231,58 @@ document.addEventListener('DOMContentLoaded', () => {
                     body: JSON.stringify(payload)
                 });
 
-                if (res.ok) {
-                    Swal.fire({ icon: 'success', title: 'Admin Added! ✅', text: `${payload.fullName} has been registered.`, timer: 2000, showConfirmButton: false, background: 'var(--bg-card)', color: 'var(--text-main)' });
-                    adminModal.classList.remove('active');
-                    addAdminForm.reset();
-                    loadAdmins(); // Refresh from API
-                } else {
-                    const err = await res.text().catch(() => '');
-                    throw new Error(`Server ${res.status}: ${err}`);
-                }
-            } catch (err) {
-                // Fallback — add locally
-                adminsData.push({
-                    id: adminsData.length + 100,
-                    code: `ADM-${String(adminsData.length + 1).padStart(3, '0')}`,
+                const newAdmin = {
+                    id: Date.now(), // Fallback ID
+                    code: `ADM-${Math.floor(100 + Math.random() * 900)}`,
                     name: payload.fullName,
                     email: payload.email,
                     phone: payload.phoneNumber,
                     status: 'Active',
                     role: 'Admin',
                     department: 'General'
-                });
+                };
+
+                if (res.ok) {
+                    const data = await res.json().catch(() => ({}));
+                    if (data.id) newAdmin.id = data.id;
+
+                    Swal.fire({ icon: 'success', title: 'Admin Added! ✅', text: `${payload.fullName} has been registered.`, timer: 2000, showConfirmButton: false, background: 'var(--bg-card)', color: 'var(--text-main)' });
+                } else {
+                    Swal.fire({ icon: 'success', title: 'Admin Added! ✅', text: `${payload.fullName} added (local mode).`, timer: 2000, showConfirmButton: false, background: 'var(--bg-card)', color: 'var(--text-main)' });
+                }
+
+                // Add to memory and Local Storage
+                adminsData.push(newAdmin);
+                const localAdmins = JSON.parse(localStorage.getItem('addedAdmins') || '[]');
+                localAdmins.push(newAdmin);
+                localStorage.setItem('addedAdmins', JSON.stringify(localAdmins));
+
                 renderCards(adminsData);
                 adminModal.classList.remove('active');
                 addAdminForm.reset();
-                Swal.fire({ icon: 'success', title: 'Admin Added! ✅', text: `${payload.fullName} added (local mode).`, timer: 2000, showConfirmButton: false, background: 'var(--bg-card)', color: 'var(--text-main)' });
+
+            } catch (err) {
+                console.warn('API Add failed, using local only:', err);
+                const newAdmin = {
+                    id: Date.now(),
+                    code: `ADM-${Math.floor(100 + Math.random() * 900)}`,
+                    name: payload.fullName,
+                    email: payload.email,
+                    phone: payload.phoneNumber,
+                    status: 'Active',
+                    role: 'Admin',
+                    department: 'General'
+                };
+                adminsData.push(newAdmin);
+                
+                const localAdmins = JSON.parse(localStorage.getItem('addedAdmins') || '[]');
+                localAdmins.push(newAdmin);
+                localStorage.setItem('addedAdmins', JSON.stringify(localAdmins));
+
+                renderCards(adminsData);
+                adminModal.classList.remove('active');
+                addAdminForm.reset();
+                Swal.fire({ icon: 'success', title: 'Admin Added! ✅', text: `${payload.fullName} added (local backup).`, timer: 2000, showConfirmButton: false, background: 'var(--bg-card)', color: 'var(--text-main)' });
             } finally {
                 btn.disabled = false;
                 btn.innerText = 'Add Admin';
@@ -292,6 +336,15 @@ document.addEventListener('DOMContentLoaded', () => {
                 }
 
                 adminsData[idx].status = newStatus;
+
+                // Sync with Local Storage
+                let localAdmins = JSON.parse(localStorage.getItem('addedAdmins') || '[]');
+                const localIdx = localAdmins.findIndex(a => a.email === admin.email);
+                if (localIdx !== -1) {
+                    localAdmins[localIdx].status = newStatus;
+                    localStorage.setItem('addedAdmins', JSON.stringify(localAdmins));
+                }
+
                 Swal.fire({
                     icon: 'success', title: 'Status Updated',
                     text: `${admin.name} is now ${newStatus}${apiSuccess ? '' : ' (local)'}`,
@@ -325,6 +378,11 @@ document.addEventListener('DOMContentLoaded', () => {
                     try {
                         await fetch(`${API}/${admin.id}`, { method: 'DELETE' });
                     } catch { /* fallback */ }
+
+                    // Sync with Local Storage
+                    let localAdmins = JSON.parse(localStorage.getItem('addedAdmins') || '[]');
+                    localAdmins = localAdmins.filter(a => a.email !== admin.email);
+                    localStorage.setItem('addedAdmins', JSON.stringify(localAdmins));
 
                     adminsData.splice(idx, 1);
                     renderCards(adminsData);

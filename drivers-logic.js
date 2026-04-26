@@ -487,36 +487,64 @@ document.addEventListener('DOMContentLoaded', () => {
     // ==========================================
     // 13. Driver Profile Modal — Open & Populate
     // ==========================================
-    function openDriverProfile(driverId) {
+    async function openDriverProfile(driverId) {
         const driverObj = driversData.find(d => d.id == driverId);
         if (!driverObj) return;
 
         const modal = document.getElementById('driverProfileModal');
+        
+        // Fetch Real Data from API
+        let realDetails = null;
+        try {
+            // Pattern: /api/Driver/details/{id}
+            const res = await fetch(`https://transit-way.runasp.net/api/Driver/details/${driverId}`);
+            if (res.ok) {
+                realDetails = await res.json();
+            }
+        } catch (e) {
+            console.warn('Driver details API failed:', e);
+        }
+
         const stats = generateDriverStats(driverId);
+        
+        // Use real details with the nested structure: driver, bus, stats
+        const displayData = {
+            name: realDetails?.driver?.name || driverObj.name,
+            license: realDetails?.driver?.licenseNumber || driverObj.license,
+            phone: realDetails?.driver?.phone || driverObj.phone,
+            email: realDetails?.driver?.email || driverObj.email || '—',
+            busName: realDetails?.bus?.busNumber ? `Bus #${realDetails.bus.busNumber}` : (driverObj.busName || 'Unassigned'),
+            totalHours: realDetails?.stats?.totalHours ?? stats.totalHours,
+            trips: realDetails?.stats?.totalTrips ?? stats.tripsCompleted,
+            rating: realDetails?.stats?.rating ?? stats.safetyRating,
+            onTime: realDetails?.stats?.onTimeRate ?? stats.onTimeRate,
+            joined: (realDetails?.driver?.joinedDate) ? new Date(realDetails.driver.joinedDate) : stats.joinedDate,
+            route: realDetails?.bus?.route || stats.assignedRoute
+        };
 
         // Header
-        document.getElementById('dpAvatar').src = `https://ui-avatars.com/api/?name=${encodeURIComponent(driverObj.name)}&background=568e74&color=fff&size=150&bold=true`;
-        document.getElementById('dpName').textContent = driverObj.name;
-        document.getElementById('dpId').textContent = `#${driverObj.id}`;
+        document.getElementById('dpAvatar').src = `https://ui-avatars.com/api/?name=${encodeURIComponent(displayData.name)}&background=568e74&color=fff&size=150&bold=true`;
+        document.getElementById('dpName').textContent = displayData.name;
+        document.getElementById('dpId').textContent = `#${driverId}`;
 
         const isActive = driverObj.status === 'Active';
         document.getElementById('dpStatusBadge').innerHTML = `<span class="dp-header-badge ${isActive ? 'dp-badge-active' : 'dp-badge-inactive'}">${driverObj.status}</span>`;
 
         // Info Grid
-        document.getElementById('dpLicense').textContent = driverObj.license;
-        document.getElementById('dpPhone').textContent = driverObj.phone;
-        document.getElementById('dpBus').textContent = driverObj.busName || 'Unassigned';
-        document.getElementById('dpEmail').textContent = driverObj.email || '—';
-        document.getElementById('dpJoined').textContent = stats.joinedDate.toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' });
-        document.getElementById('dpRoute').textContent = stats.assignedRoute;
+        document.getElementById('dpLicense').textContent = displayData.license;
+        document.getElementById('dpPhone').textContent = displayData.phone;
+        document.getElementById('dpBus').textContent = displayData.busName;
+        document.getElementById('dpEmail').textContent = displayData.email;
+        document.getElementById('dpJoined').textContent = displayData.joined.toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' });
+        document.getElementById('dpRoute').textContent = displayData.route;
 
         // Animated Stats
-        animateValue(document.getElementById('dpTotalHours'), stats.totalHours, 'h');
-        animateValue(document.getElementById('dpTrips'), stats.tripsCompleted);
+        animateValue(document.getElementById('dpTotalHours'), displayData.totalHours, 'h');
+        animateValue(document.getElementById('dpTrips'), displayData.trips);
         
         // Safety rating with decimal
         const safetyEl = document.getElementById('dpSafety');
-        const safetyTarget = parseFloat(stats.safetyRating);
+        const safetyTarget = parseFloat(displayData.rating);
         const sfDuration = 800;
         const sfStart = performance.now();
         function sfStep(now) {
@@ -527,7 +555,7 @@ document.addEventListener('DOMContentLoaded', () => {
         }
         requestAnimationFrame(sfStep);
 
-        animateValue(document.getElementById('dpOnTime'), stats.onTimeRate, '%');
+        animateValue(document.getElementById('dpOnTime'), displayData.onTime, '%');
 
         // Weekly Activity Chart
         const weeklyCtx = document.getElementById('dpWeeklyChart').getContext('2d');
@@ -537,13 +565,25 @@ document.addEventListener('DOMContentLoaded', () => {
         const gridColor = isDark ? '#334155' : 'rgba(148,163,184,0.15)';
         const textColor = isDark ? '#f8fafc' : '#1e293b';
 
+        // Map API weekly activity to days
+        const dayMap = { 'Sunday':0, 'Monday':1, 'Tuesday':2, 'Wednesday':3, 'Thursday':4, 'Friday':5, 'Saturday':6 };
+        let weeklyDataArr = [0,0,0,0,0,0,0];
+        if (realDetails?.weeklyActivity && Array.isArray(realDetails.weeklyActivity)) {
+            realDetails.weeklyActivity.forEach(act => {
+                const idx = dayMap[act.day];
+                if (idx !== undefined) weeklyDataArr[idx] = act.count;
+            });
+        } else {
+            weeklyDataArr = stats.weeklyHours;
+        }
+
         weeklyChartInstance = new Chart(weeklyCtx, {
             type: 'bar',
             data: {
                 labels: ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'],
                 datasets: [{
                     label: 'Hours',
-                    data: stats.weeklyHours,
+                    data: weeklyDataArr,
                     backgroundColor: [
                         'rgba(86,142,116,0.7)', 'rgba(59,130,246,0.7)', 'rgba(139,92,246,0.7)',
                         'rgba(245,158,11,0.7)', 'rgba(86,142,116,0.7)', 'rgba(239,68,68,0.7)',
@@ -562,8 +602,6 @@ document.addEventListener('DOMContentLoaded', () => {
                     tooltip: {
                         backgroundColor: 'rgba(15,23,42,0.9)',
                         padding: 10, cornerRadius: 10,
-                        titleFont: { family: 'Plus Jakarta Sans', weight: '700' },
-                        bodyFont: { family: 'Plus Jakarta Sans', weight: '600' },
                         callbacks: {
                             label: (ctx) => `${ctx.raw} hours`
                         }
@@ -572,7 +610,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 scales: {
                     y: {
                         beginAtZero: true,
-                        max: 12,
+                        max: Math.max(...weeklyDataArr, 5) + 2,
                         ticks: { font: { family: 'Plus Jakarta Sans', weight: '600' }, color: textColor },
                         grid: { color: gridColor }
                     },
@@ -588,12 +626,15 @@ document.addEventListener('DOMContentLoaded', () => {
         const perfCtx = document.getElementById('dpPerformanceChart').getContext('2d');
         if (performanceChartInstance) performanceChartInstance.destroy();
 
+        // Use real performance data if available (Doughnut)
+        const perfData = realDetails?.performance || [stats.excellent, stats.good, stats.average];
+
         performanceChartInstance = new Chart(perfCtx, {
             type: 'doughnut',
             data: {
                 labels: ['Excellent', 'Good', 'Average'],
                 datasets: [{
-                    data: [stats.excellent, stats.good, stats.average],
+                    data: perfData,
                     backgroundColor: ['#22c55e', '#3b82f6', '#f59e0b'],
                     borderWidth: 0,
                     hoverOffset: 6
@@ -628,16 +669,22 @@ document.addEventListener('DOMContentLoaded', () => {
         // Trip History Table
         const tripsBody = document.getElementById('dpTripsBody');
         tripsBody.innerHTML = '';
-        stats.recentTrips.forEach(trip => {
-            const statusClass = trip.status === 'Completed' ? 'dp-trip-completed'
-                : trip.status === 'Delayed' ? 'dp-trip-delayed' : 'dp-trip-ongoing';
+        
+        // Use real trips from API
+        const history = realDetails?.recentTrips || stats.recentTrips;
+
+        history.forEach(trip => {
+            const statusLower = (trip.status || '').toLowerCase();
+            const statusClass = (statusLower === 'completed' || statusLower === 'done' || statusLower === 'sold') ? 'dp-trip-completed'
+                : (statusLower === 'delayed' || statusLower === 'late') ? 'dp-trip-delayed' : 'dp-trip-ongoing';
+            
             tripsBody.innerHTML += `
                 <tr>
-                    <td style="font-weight:700;"><i class="fas fa-route" style="color:var(--primary-color); margin-right:6px;"></i>${trip.route}</td>
-                    <td style="color:var(--text-muted);">${trip.date}</td>
-                    <td>${trip.duration}</td>
-                    <td>${trip.distance}</td>
-                    <td><span class="dp-trip-badge ${statusClass}">${trip.status}</span></td>
+                    <td style="font-weight:700;"><i class="fas fa-route" style="color:var(--primary-color); margin-right:6px;"></i>${trip.route || 'Unknown'}</td>
+                    <td style="color:var(--text-muted);">${trip.date || '—'}</td>
+                    <td>${trip.duration || '—'}</td>
+                    <td>${trip.distance || '—'}</td>
+                    <td><span class="dp-trip-badge ${statusClass}">${trip.status || 'Unknown'}</span></td>
                 </tr>`;
         });
 

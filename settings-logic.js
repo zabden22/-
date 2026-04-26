@@ -127,14 +127,21 @@ document.addEventListener('DOMContentLoaded', () => {
                 const dept = role === 'SuperAdmin' ? 'System Operations' : (localStorage.getItem('activeAdminDept') || 'Fleet Operations');
 
                 // Update all profile fields
-                if (topBarName) topBarName.innerText = name;
-                if (sideProfileName) sideProfileName.innerText = name;
-                if (adminNameInput) adminNameInput.value = name;
+                const displayName = localStorage.getItem('activeAdminName') || name;
+                if (topBarName) topBarName.innerText = displayName;
+                if (sideProfileName) sideProfileName.innerText = displayName;
+                if (adminNameInput) adminNameInput.value = displayName;
+                
                 if (adminEmailInput) { adminEmailInput.value = email; adminEmailInput.readOnly = true; }
                 if (adminPhoneInput) adminPhoneInput.value = phone;
                 if (adminLocationInput) adminLocationInput.value = localStorage.getItem('activeAdminLocation') || 'Cairo, Egypt';
                 if (adminDeptInput) adminDeptInput.value = dept;
-                if (profileAvatar) profileAvatar.src = `https://ui-avatars.com/api/?name=${encodeURIComponent(name)}&background=568e74&color=fff&size=150&bold=true`;
+
+                const savedPhoto = localStorage.getItem('activeAdminPhoto');
+                if (profileAvatar) {
+                    profileAvatar.src = savedPhoto || `https://ui-avatars.com/api/?name=${encodeURIComponent(displayName)}&background=568e74&color=fff&size=150&bold=true`;
+                }
+                
                 if (adminIdBadge) adminIdBadge.textContent = `#${code}`;
 
                 // Update role badge
@@ -143,8 +150,8 @@ document.addEventListener('DOMContentLoaded', () => {
                     roleBadge.innerHTML = `<i class="fas fa-crown" style="margin-right:4px;"></i> ${role === 'SuperAdmin' ? 'Super Admin' : role}`;
                 }
 
-                // Save to localStorage for other pages
-                localStorage.setItem('activeAdminName', name);
+                // Sync localStorage just in case
+                localStorage.setItem('activeAdminName', displayName);
                 localStorage.setItem('activeAdminPhone', phone);
                 localStorage.setItem('activeAdminEmail', email);
                 localStorage.setItem('activeAdminId', currentAdminData.id);
@@ -152,9 +159,14 @@ document.addEventListener('DOMContentLoaded', () => {
         } catch (e) {
             console.warn('Could not fetch admin profile from API, using localStorage:', e.message);
             // Fallback to localStorage values
+            const adminName = localStorage.getItem('activeAdminName') || 'Admin';
             const adminPhone = localStorage.getItem('activeAdminPhone') || '01023456789';
             const adminLocation = localStorage.getItem('activeAdminLocation') || 'Cairo, Egypt';
             const adminDept = localStorage.getItem('activeAdminDept') || 'Fleet Operations';
+            
+            if (topBarName) topBarName.innerText = adminName;
+            if (sideProfileName) sideProfileName.innerText = adminName;
+            if (adminNameInput) adminNameInput.value = adminName;
             if (adminPhoneInput) adminPhoneInput.value = adminPhone;
             if (adminLocationInput) adminLocationInput.value = adminLocation;
             if (adminDeptInput) adminDeptInput.value = adminDept;
@@ -162,6 +174,37 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     loadAdminProfile();
+
+    // Photo Upload Logic
+    const avatarUpload = document.getElementById('avatarUpload');
+    if (avatarUpload) {
+        avatarUpload.addEventListener('change', (e) => {
+            const file = e.target.files[0];
+            if (file) {
+                const reader = new FileReader();
+                reader.onload = (event) => {
+                    const base64Image = event.target.result;
+                    localStorage.setItem('activeAdminPhoto', base64Image);
+                    if (profileAvatar) profileAvatar.src = base64Image;
+                    
+                    // Update top bar avatar if exists
+                    const topAvatar = document.querySelector('.top-avatar');
+                    if (topAvatar) topAvatar.src = base64Image;
+
+                    Swal.fire({
+                        icon: 'success',
+                        title: getLang() === 'ar' ? 'تم تحديث الصورة' : 'Photo Updated',
+                        text: getLang() === 'ar' ? 'تم تغيير صورة الملف الشخصي بنجاح.' : 'Profile photo has been updated successfully.',
+                        timer: 2000,
+                        showConfirmButton: false,
+                        background: 'var(--bg-card)',
+                        color: 'var(--text-main)'
+                    });
+                };
+                reader.readAsDataURL(file);
+            }
+        });
+    }
 
     // Handle Form Submit — save to API + localStorage
     const profileForm = document.getElementById('profileForm');

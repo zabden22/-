@@ -323,9 +323,27 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     };
 
+    window.toggleFullMap = function() {
+        const btn = document.getElementById('fullScreenToggle');
+        const isFull = document.body.classList.toggle('full-map-mode');
+        if (btn) btn.classList.toggle('active', isFull);
+        
+        // Trigger map resize to fix layout issues
+        setTimeout(() => {
+            if (map) map.invalidateSize();
+        }, 300);
+    };
+
     // ==========================================
     // 9. Fetch Real Buses
     // ==========================================
+    const PREDEFINED_ROUTES = [
+        { id: 'R1', name: "Ain Shams Housing Bus Station- Al Asmarat", startStr: "Ain Shams", endStr: "Al Asmarat", color: "#3b82f6", numBuses: 3 },
+        { id: 'R2', name: "El Shrouk Sports Clup- El Shrouk Academy", startStr: "Shorouk", endStr: "Academy", color: "#ef4444", numBuses: 3 },
+        { id: 'R3', name: "Madinaty Main Station- Open Air Mall", startStr: "Madinaty", endStr: "Open Air Mall", color: "#f59e0b", numBuses: 3 },
+        { id: 'R4', name: "El Haram Square- Al Horeyya Rd", startStr: "Haram", endStr: "Horeyya", color: "#8b5cf6", numBuses: 3 }
+    ];
+
     async function fetchRealBuses() {
         try {
             const res = await fetch('https://transit-way.runasp.net/api/Bus');
@@ -337,12 +355,10 @@ document.addEventListener('DOMContentLoaded', () => {
             console.error('Fetch Buses Error:', e);
         }
 
-        // Demo buses for video / presentation
-        const demoBuses = [
-            { id: 'V1', busnumber: 'VID-01', routeid: 'A', drivername: 'Driver Al-Ahly', platenumber: 'VID-001', status: 'Active', customColor: '#ef4444' },
-            { id: 'V2', busnumber: 'VID-02', routeid: 'B', drivername: 'Driver Zamalek', platenumber: 'VID-002', status: 'Active', customColor: '#3b82f6' },
-            { id: 'V3', busnumber: 'VID-03', routeid: 'C', drivername: 'Driver Pyramid', platenumber: 'VID-003', status: 'Active', customColor: '#10b981' }
-        ];
+        // Demo buses representing the 1 real bus connected to API per route
+        const demoBuses = PREDEFINED_ROUTES.map((r, i) => ({
+            id: `REAL_${r.id}`, busnumber: `API-${i+1}`, routeid: r.id, routeName: r.name, drivername: `API Driver ${i+1}`, platenumber: `API-${i+1}00`, status: 'Active', customColor: r.color
+        }));
         demoBuses.forEach(vb => allRealBuses.push(vb));
     }
 
@@ -376,6 +392,17 @@ document.addEventListener('DOMContentLoaded', () => {
             let validStations = allStations.filter(s => String(s.routeId) === String(bRouteId));
             if (validStations.length === 0) validStations = allStations.filter(s => s.routeName && bRouteName && s.routeName.toLowerCase() === bRouteName.toLowerCase());
             if (validStations.length === 0 && bRouteName) validStations = allStations.filter(s => s.zone && bRouteName.toLowerCase().includes(s.zone.toLowerCase()));
+            
+            // Map demo buses directly to predefined route stations
+            if (bId.startsWith('REAL_')) {
+                const pr = PREDEFINED_ROUTES.find(r => r.id === bRouteId);
+                if (pr) {
+                    const s1 = allStations.find(s => s.name.toLowerCase().includes(pr.startStr.toLowerCase()));
+                    const s2 = allStations.find(s => s.name.toLowerCase().includes(pr.endStr.toLowerCase()));
+                    if (s1 && s2) validStations = [s1, s2];
+                }
+            }
+
             if (validStations.length === 0) validStations = allStations; // fallback to all stations
 
             if (!bus._routeStations) {
@@ -456,7 +483,7 @@ document.addEventListener('DOMContentLoaded', () => {
                                 white-space:nowrap;
                             ">#${bId}</div>
                             <div style="position:relative;display:flex;align-items:center;justify-content:center;">
-                                <div class="bus-pulse" style="background:${color};"></div>
+                                <div class="bus-pulse bus-pulse-real" style="background:${color};"></div>
                                 <i class="fas fa-bus" style="color:${color};font-size:22px;z-index:2;position:relative;text-shadow:0 0 4px rgba(255,255,255,0.8);"></i>
                             </div>
                         </div>`,
@@ -622,6 +649,11 @@ document.addEventListener('DOMContentLoaded', () => {
                 return;
             }
 
+            if (st1.routeId !== st2.routeId) {
+                Swal.fire('Error', 'Stations must belong to the same route.', 'error');
+                return;
+            }
+
             // Clear any previous route animation
             clearRouteAnimation();
 
@@ -734,6 +766,162 @@ document.addEventListener('DOMContentLoaded', () => {
                 console.warn('UserTrip endpoint not available:', e.message);
             }
         });
+    }
+
+    // ==========================================
+    // GLOBAL SIMULATION STATE & TOGGLE
+    // ==========================================
+    let isGlobalSimulationOn = false;
+    let globalSimBuses = [];
+    let globalSimIntervals = [];
+
+    window.toggleSimulation = function() {
+        const btn = document.getElementById('toggleSimBtn');
+        isGlobalSimulationOn = !isGlobalSimulationOn;
+        if (isGlobalSimulationOn) {
+            btn.classList.add('paused');
+            btn.innerHTML = '<i class="fas fa-pause-circle"></i><span>Simulation OFF</span>';
+            // Remove real bus markers before starting simulation
+            realBusMarkers.forEach(m => { try { map.removeLayer(m); } catch(e){} });
+            realBusMarkers = [];
+            startGlobalSimulation();
+        } else {
+            btn.classList.remove('paused');
+            btn.innerHTML = '<i class="fas fa-play-circle"></i><span>Simulation ON</span>';
+            stopGlobalSimulation();
+        }
+    };
+
+    function interpolatePoints(points, maxDist = 0.0002) {
+        if (points.length < 2) return points;
+        const interpolated = [];
+        for (let i = 0; i < points.length - 1; i++) {
+            const p1 = points[i];
+            const p2 = points[i + 1];
+            const dist = Math.sqrt(Math.pow(p2.lat - p1.lat, 2) + Math.pow(p2.lng - p1.lng, 2));
+            const steps = Math.max(1, Math.ceil(dist / maxDist));
+            for (let j = 0; j < steps; j++) {
+                interpolated.push(L.latLng(
+                    p1.lat + (p2.lat - p1.lat) * (j / steps),
+                    p1.lng + (p2.lng - p1.lng) * (j / steps)
+                ));
+            }
+        }
+        interpolated.push(points[points.length - 1]);
+        return interpolated;
+    }
+
+    // Hardcoded station ID sequences for each route (from the API data)
+    const ROUTE_STATION_IDS = {
+        'R1': [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14],       // Ain Shams Housing → Al Asmarat (Cairo zone)
+        'R2': [27, 29, 30, 31, 32, 33, 34, 36, 37, 38, 39],           // El Shrouk Sports Clup → El Shrouk Academy (El-Shrouk zone)
+        'R3': [57, 58, 59, 60, 61, 62, 63, 64, 65, 66],               // Madinaty Main Station → Open Air Mall (Madinty zone)
+        'R4': [41, 42, 43, 44, 45, 46, 47, 48, 49, 50, 51, 52, 53, 54, 55]  // El Haram Square → Al Horeyya Rd (Badr zone)
+    };
+
+    function startGlobalSimulation() {
+        PREDEFINED_ROUTES.forEach(route => {
+            const stationIds = ROUTE_STATION_IDS[route.id];
+            if (!stationIds) return;
+
+            // Get actual station objects in order
+            const routeStations = stationIds
+                .map(id => allStations.find(s => s.id === id))
+                .filter(s => s && s.lat && s.lng && !isNaN(s.lat) && !isNaN(s.lng));
+
+            if (routeStations.length < 2) {
+                console.warn(`Route ${route.name}: Not enough valid stations found (${routeStations.length})`);
+                return;
+            }
+
+            const coords = routeStations.map(s => L.latLng(s.lat, s.lng));
+            const interpolatedCoords = interpolatePoints(coords, 0.0002);
+            console.log(`Route ${route.name}: Spawning ${route.numBuses} buses on ${routeStations.length} stations (${interpolatedCoords.length} interpolated points)`);
+            spawnSimulatedBusesForRoute(route, interpolatedCoords);
+        });
+    }
+
+    let realBusMarkers = [];
+
+    function stopGlobalSimulation() {
+        globalSimIntervals.forEach(id => clearInterval(id));
+        globalSimIntervals = [];
+        globalSimBuses.forEach(m => { try { map.removeLayer(m); } catch(e){} });
+        globalSimBuses = [];
+
+        // Remove previous real bus markers
+        realBusMarkers.forEach(m => { try { map.removeLayer(m); } catch(e){} });
+        realBusMarkers = [];
+
+        // Place 1 real bus at the first station of each route
+        PREDEFINED_ROUTES.forEach(route => {
+            const stationIds = ROUTE_STATION_IDS[route.id];
+            if (!stationIds || stationIds.length === 0) return;
+
+            const firstStation = allStations.find(s => s.id === stationIds[0]);
+            if (!firstStation || !firstStation.lat || !firstStation.lng) return;
+
+            const icon = L.divIcon({
+                className: 'bus-marker-icon',
+                html: `
+                    <div style="display:flex;flex-direction:column;align-items:center;gap:2px;">
+                        <div style="background:${route.color};color:#fff;font-size:10px;font-weight:900;padding:2px 8px;border-radius:8px;font-family:'Plus Jakarta Sans',sans-serif;white-space:nowrap;border:1px solid rgba(255,255,255,0.4);">REAL - ${route.name}</div>
+                        <div style="position:relative;display:flex;align-items:center;justify-content:center;">
+                            <div class="bus-pulse" style="background:${route.color};"></div>
+                            <i class="fas fa-bus" style="color:${route.color};font-size:22px;z-index:2;position:relative;text-shadow:0 0 6px rgba(255,255,255,0.9);"></i>
+                        </div>
+                    </div>`,
+                iconSize: [54, 58],
+                iconAnchor: [27, 58]
+            });
+
+            const marker = L.marker([firstStation.lat, firstStation.lng], { icon })
+                .addTo(map)
+                .bindPopup(`
+                    <div style="font-family:'Plus Jakarta Sans',sans-serif;min-width:180px;">
+                        <h4 style="color:${route.color};margin:0 0 8px;font-size:14px;border-bottom:1px solid #e2e8f0;padding-bottom:6px;">
+                            <i class="fas fa-bus"></i> Real Bus
+                        </h4>
+                        <div style="font-size:12px;line-height:1.8;">
+                            <b>Route:</b> ${route.name}<br>
+                            <b>Station:</b> ${firstStation.name}<br>
+                            <b>Status:</b> <span style="color:#22c55e;font-weight:800;">Waiting ●</span>
+                        </div>
+                    </div>`);
+            realBusMarkers.push(marker);
+        });
+    }
+
+    function spawnSimulatedBusesForRoute(route, coords) {
+        // Create buses staggered along the route
+        const busesCount = route.numBuses || 3;
+        for (let i = 0; i < busesCount; i++) {
+            const startIdx = Math.floor((coords.length / busesCount) * i);
+            let idx = startIdx;
+            
+            const icon = L.divIcon({
+                className: 'bus-marker-icon bus-no-pulse',
+                html: `
+                    <div style="display:flex;flex-direction:column;align-items:center;gap:2px;">
+                        <div style="background:${route.color};color:#fff;font-size:10px;font-weight:900;padding:2px 8px;border-radius:8px;font-family:'Plus Jakarta Sans',sans-serif;white-space:nowrap;border:1px solid rgba(255,255,255,0.4);">SIM - ${route.name}</div>
+                        <div style="position:relative;display:flex;align-items:center;justify-content:center;">
+                            <i class="fas fa-bus" style="color:${route.color};font-size:20px;z-index:2;position:relative;text-shadow:0 0 6px rgba(255,255,255,0.9);"></i>
+                        </div>
+                    </div>`,
+                iconSize: [54, 56],
+                iconAnchor: [27, 56]
+            });
+            
+            const marker = L.marker(coords[idx] || coords[0], { icon }).addTo(map);
+            globalSimBuses.push(marker);
+            
+            const stepMs = 100 + Math.random() * 80; // random speed 100ms-180ms per tick
+            const ivl = setInterval(() => {
+                idx = (idx + 1) % coords.length;
+                marker.setLatLng(coords[idx]);
+            }, stepMs);
+            globalSimIntervals.push(ivl);
+        }
     }
 
     // ==========================================

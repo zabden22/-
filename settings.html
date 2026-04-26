@@ -148,6 +148,23 @@
             border-radius: 50%;
             background: #22c55e;
             border: 3px solid var(--bg-card);
+            z-index: 5;
+        }
+        .avatar-edit-overlay {
+            position: absolute;
+            bottom: 4px; right: 4px;
+            width: 32px; height: 32px;
+            border-radius: 50%;
+            background: var(--primary-color);
+            border: 3px solid var(--bg-card);
+            display: flex; align-items: center; justify-content: center;
+            color: white; font-size: 0.8rem;
+            cursor: pointer; transition: 0.3s;
+            z-index: 10;
+        }
+        .avatar-edit-overlay:hover {
+            transform: scale(1.1);
+            background: #4a7d65;
         }
         .profile-hero-info { flex: 1; z-index: 1; }
         .profile-hero-info h2 {
@@ -495,10 +512,15 @@
 
         <main class="main-content">
             <header class="top-bar">
-                <h2 class="path-title" data-i18n="settings">Settings</h2>
+                <div class="top-left" style="display: flex; align-items: center; gap: 15px;">
+                    <button class="hamburger-btn" id="sidebarToggle" style="background: var(--bg-card); border: 1px solid var(--border-color); width: 40px; height: 40px; border-radius: 10px; color: var(--text-main); cursor: pointer; display: flex; align-items: center; justify-content: center; font-size: 1.1rem; transition: 0.3s;">
+                        <i class="fas fa-bars"></i>
+                    </button>
+                    <h2 class="path-title" style="margin-bottom: 0;" data-i18n="settings">Settings</h2>
+                </div>
                 <div class="top-controls">
                     <div class="user-info">
-                        <i class="fas fa-user-circle"></i>
+                        <img src="https://ui-avatars.com/api/?name=Moscow&background=random&color=fff&rounded=true&bold=true&size=32" class="top-avatar" style="width: 32px; height: 32px; border-radius: 50%; border: 2px solid var(--primary-color);">
                         <span id="topBarName">Loading...</span>
                         <i class="fas fa-chevron-down arrow-icon"></i>
                     </div>
@@ -531,8 +553,12 @@
                 <!-- Profile Hero Card -->
                 <div class="profile-hero">
                     <div class="profile-hero-avatar">
-                        <img id="profileAvatar" src="https://ui-avatars.com/api/?name=Admin&background=568e74&color=fff&size=150" alt="Admin Avatar">
+                        <img id="profileAvatar" src="https://ui-avatars.com/api/?name=Admin&background=568e74&color=fff&size=150" alt="Admin Avatar" style="cursor: pointer;" onclick="document.getElementById('avatarUpload').click()">
                         <div class="avatar-status"></div>
+                        <div class="avatar-edit-overlay" onclick="document.getElementById('avatarUpload').click()">
+                            <i class="fas fa-camera"></i>
+                        </div>
+                        <input type="file" id="avatarUpload" style="display: none;" accept="image/*">
                     </div>
                     <div class="profile-hero-info">
                         <h2 id="sideProfileName">Admin</h2>

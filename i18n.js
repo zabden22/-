@@ -200,7 +200,17 @@ const strictTextMappings = {
     "Resets unsaved preferences and local app storage": "إعادة تعيين التفضيلات غير المحفوظة والمساحة المحلية",
     "Clear Data": "مسح البيانات",
     "Delete Account": "حذف الحساب",
-    "Permanently remove your admin access from the system": "إزالة وصولك كمسؤول من النظام بشكل دائم"
+    "Permanently remove your admin access from the system": "إزالة وصولك كمسؤول من النظام بشكل دائم",
+    "Update Report Status": "تحديث حالة التقرير",
+    "Change Status": "تغيير الحالة",
+    "Save Status": "حفظ الحالة",
+    "New Report Received": "تم استلام تقرير جديد",
+    "A new report has just arrived. Refresh to see it.": "لقد وصل تقرير جديد للتو. قم بالتحديث للمشاهدة.",
+    "Refresh": "تحديث",
+    "Pending": "قيد الانتظار",
+    "In Progress": "قيد التنفيذ",
+    "Resolved": "تم الحل",
+    "Your Strategic Command Center for Transit Excellence.": "مركز القيادة الاستراتيجي الخاص بك للتميز في النقل."
 };
 
 function getLang() {
@@ -289,9 +299,11 @@ function applyLang() {
         if (translations[lang] && translations[lang][key]) {
             const icon = el.querySelector('i');
             if (icon) {
+                const textSpan = document.createElement('span');
+                textSpan.innerText = ' ' + translations[lang][key];
                 el.innerHTML = '';
                 el.appendChild(icon);
-                el.appendChild(document.createTextNode(' ' + translations[lang][key]));
+                el.appendChild(textSpan);
             } else {
                 el.innerText = translations[lang][key];
             }

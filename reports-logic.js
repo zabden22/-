@@ -7,27 +7,45 @@ document.addEventListener('DOMContentLoaded', () => {
     document.documentElement.setAttribute('data-theme', currentTheme);
 
     // 2. Config
-    const API = 'https://transit-way.runasp.net/api/complaints/report';
+    const API = 'https://transit-way.runasp.net/api/complaints';
     const reportsTableBody = document.getElementById('reportsTableBody');
     const searchInput = document.getElementById('reportSearchInput');
     let reportsData = [];
     let activeFilter = 'all';
+    let currentEditingId = null; // Track which report is being edited
 
     // 3. Rich Static Mock Data
     const mockReports = [
-        { id: 'RPT-001', category: 'Vehicle Damage', busId: 'B-009', routeId: 'Route 14', reporter: 'Passenger #U-98', reporterType: 'Passenger', priority: 'critical', message: 'Multiple broken windows detected on the left side of the bus. Glass fragments pose safety risk to passengers.', date: '2026-04-20T08:30:00Z', status: 'pending', image: 'https://via.placeholder.com/600x400/ef4444/fff?text=Window+Damage', assignedTo: 'Maintenance Team A' },
+        { id: 'RPT-001', category: 'Vehicle Damage', busId: 'B-009', routeId: 'Route 14', reporter: 'Passenger #U-98', reporterType: 'Passenger', priority: 'critical', message: 'Multiple broken windows detected on the left side of the bus. Glass fragments pose safety risk to passengers.', date: '2026-04-20T08:30:00Z', status: 'pending', image: 'https://picsum.photos/seed/busdamage1/600/400', assignedTo: 'Maintenance Team A' },
         { id: 'RPT-002', category: 'Driver Complaint', busId: 'B-034', routeId: 'Route 7', reporter: 'Passenger #U-142', reporterType: 'Passenger', priority: 'high', message: 'Driver was using mobile phone while driving on the highway section. Passengers felt unsafe during the ride.', date: '2026-04-19T14:20:00Z', status: 'in-progress', image: null, assignedTo: 'HR Department' },
-        { id: 'RPT-003', category: 'Cleanliness', busId: 'B-011', routeId: 'Route 3', reporter: 'Inspector #INS-05', reporterType: 'Inspector', priority: 'medium', message: 'Bus interior not cleaned properly. Seats have stains and the floor has trash. Needs deep cleaning before next route.', date: '2026-04-19T09:15:00Z', status: 'resolved', image: 'https://via.placeholder.com/600x400/f59e0b/fff?text=Cleanliness+Issue', assignedTo: 'Cleaning Crew' },
-        { id: 'RPT-004', category: 'Mechanical Issue', busId: 'B-108', routeId: 'Route 21', reporter: 'Driver Ahmed Ali', reporterType: 'Driver', priority: 'critical', message: 'Brake system making unusual grinding noise. Bus pulled from service immediately for safety inspection.', date: '2026-04-18T16:45:00Z', status: 'in-progress', image: null, assignedTo: 'Mechanics Bay 3' },
+        { id: 'RPT-003', category: 'Cleanliness', busId: 'B-011', routeId: 'Route 3', reporter: 'Inspector #INS-05', reporterType: 'Inspector', priority: 'medium', message: 'Bus interior not cleaned properly. Seats have stains and the floor has trash. Needs deep cleaning before next route.', date: '2026-04-19T09:15:00Z', status: 'resolved', image: 'https://picsum.photos/seed/busclean/600/400', assignedTo: 'Cleaning Crew' },
+        { id: 'RPT-004', category: 'Mechanical Issue', busId: 'B-108', routeId: 'Route 21', reporter: 'Driver Ahmed Ali', reporterType: 'Driver', priority: 'critical', message: 'Brake system making unusual grinding noise. Bus pulled from service immediately for safety inspection.', date: '2026-04-18T16:45:00Z', status: 'in-progress', image: 'https://picsum.photos/seed/busmech/600/400', assignedTo: 'Mechanics Bay 3' },
         { id: 'RPT-005', category: 'Route Delay', busId: 'B-036', routeId: 'Route 9', reporter: 'Station Manager', reporterType: 'Staff', priority: 'low', message: 'Bus arrived 25 minutes late due to heavy traffic on Ring Road. Multiple passengers missed connections.', date: '2026-04-18T11:30:00Z', status: 'resolved', image: null, assignedTo: 'Operations' },
-        { id: 'RPT-006', category: 'Safety Concern', busId: 'B-015', routeId: 'Route 5', reporter: 'Passenger #U-67', reporterType: 'Passenger', priority: 'high', message: 'Emergency exit door is jammed and cannot be opened. Reported by multiple passengers on different trips.', date: '2026-04-17T13:00:00Z', status: 'pending', image: 'https://via.placeholder.com/600x400/3b82f6/fff?text=Emergency+Exit+Issue', assignedTo: 'Safety Inspector' },
+        { id: 'RPT-006', category: 'Safety Concern', busId: 'B-015', routeId: 'Route 5', reporter: 'Passenger #U-67', reporterType: 'Passenger', priority: 'high', message: 'Emergency exit door is jammed and cannot be opened. Reported by multiple passengers on different trips.', date: '2026-04-17T13:00:00Z', status: 'pending', image: 'https://picsum.photos/seed/busexit/600/400', assignedTo: 'Safety Inspector' },
         { id: 'RPT-007', category: 'AC Malfunction', busId: 'B-027', routeId: 'Route 12', reporter: 'Passenger #U-203', reporterType: 'Passenger', priority: 'medium', message: 'Air conditioning not working in the rear section of the bus. Temperature inside was extremely uncomfortable.', date: '2026-04-17T10:00:00Z', status: 'resolved', image: null, assignedTo: 'Maintenance Team B' },
-        { id: 'RPT-008', category: 'Vandalism', busId: 'B-031', routeId: 'Route 16', reporter: 'Driver Jumana', reporterType: 'Driver', priority: 'high', message: 'Seats slashed with sharp object. Graffiti on interior walls. Incident occurred during the night parking period.', date: '2026-04-16T07:20:00Z', status: 'pending', image: 'https://via.placeholder.com/600x400/8b5cf6/fff?text=Vandalism+Detected', assignedTo: 'Security Team' },
+        { id: 'RPT-008', category: 'Vandalism', busId: 'B-031', routeId: 'Route 16', reporter: 'Driver Jumana', reporterType: 'Driver', priority: 'high', message: 'Seats slashed with sharp object. Graffiti on interior walls. Incident occurred during the night parking period.', date: '2026-04-16T07:20:00Z', status: 'pending', image: 'https://picsum.photos/seed/busvandal/600/400', assignedTo: 'Security Team' },
         { id: 'RPT-009', category: 'Overcrowding', busId: 'B-033', routeId: 'Route 18', reporter: 'Station Manager', reporterType: 'Staff', priority: 'medium', message: 'Bus consistently overcrowded during peak hours (7-9 AM). Need to assign additional bus to this route.', date: '2026-04-15T08:45:00Z', status: 'resolved', image: null, assignedTo: 'Fleet Planning' },
-        { id: 'RPT-010', category: 'Accessibility', busId: 'B-010', routeId: 'Route 2', reporter: 'Passenger #U-88', reporterType: 'Passenger', priority: 'high', message: 'Wheelchair ramp is broken. Disabled passengers cannot board the bus safely. Urgent repair needed.', date: '2026-04-14T15:30:00Z', status: 'in-progress', image: 'https://via.placeholder.com/600x400/06b6d4/fff?text=Ramp+Broken', assignedTo: 'Accessibility Unit' },
+        { id: 'RPT-010', category: 'Accessibility', busId: 'B-010', routeId: 'Route 2', reporter: 'Passenger #U-88', reporterType: 'Passenger', priority: 'high', message: 'Wheelchair ramp is broken. Disabled passengers cannot board the bus safely. Urgent repair needed.', date: '2026-04-14T15:30:00Z', status: 'in-progress', image: 'https://picsum.photos/seed/busramp/600/400', assignedTo: 'Accessibility Unit' },
         { id: 'RPT-011', category: 'Noise Pollution', busId: 'B-012', routeId: 'Route 6', reporter: 'Community Member', reporterType: 'Public', priority: 'low', message: 'Bus horn used excessively near residential areas during early morning hours. Multiple community complaints received.', date: '2026-04-13T06:00:00Z', status: 'resolved', image: null, assignedTo: 'Operations' },
         { id: 'RPT-012', category: 'Fare Dispute', busId: 'B-016', routeId: 'Route 8', reporter: 'Passenger #U-155', reporterType: 'Passenger', priority: 'low', message: 'Ticket machine charged double fare. Passenger requests refund of 15 EGP. Transaction ID: TXN-88432.', date: '2026-04-12T12:20:00Z', status: 'resolved', image: null, assignedTo: 'Finance Department' },
     ];
+
+    // Helper: Save report statuses to localStorage
+    function saveStatusesToStorage() {
+        const statusMap = {};
+        reportsData.forEach(r => { statusMap[r.id] = r.status; });
+        localStorage.setItem('reportStatuses', JSON.stringify(statusMap));
+    }
+
+    // Helper: Apply saved statuses from localStorage
+    function applySavedStatuses() {
+        try {
+            const saved = JSON.parse(localStorage.getItem('reportStatuses') || '{}');
+            reportsData.forEach(r => {
+                if (saved[r.id]) r.status = saved[r.id];
+            });
+        } catch(e) { console.warn('Could not load saved statuses'); }
+    }
 
     // 4. Load Reports
     window.loadReports = async function() {
@@ -36,15 +54,34 @@ document.addEventListener('DOMContentLoaded', () => {
             const res = await fetch(API);
             if (!res.ok) throw new Error('API not available');
             const data = await res.json();
-            if (Array.isArray(data) && data.length > 0) {
-                reportsData = data;
+            const arr = Array.isArray(data) ? data : (data.$values || []);
+            if (arr.length > 0) {
+                // Normalize API fields to match our rendering code
+                reportsData = arr.map(item => ({
+                    id: item.id,
+                    category: item.category || 'General',
+                    busId: item.busId ? `B-${String(item.busId).padStart(3, '0')}` : '—',
+                    routeId: item.routeId || '—',
+                    reporter: item.reporterName || item.reporterRole || 'Anonymous',
+                    reporterType: item.reporterRole || 'Passenger',
+                    priority: (item.priority || 'medium').toLowerCase(),
+                    message: item.textComplaint || 'No description provided.',
+                    date: item.createdAt || new Date().toISOString(),
+                    status: (item.status || 'pending').toLowerCase(),
+                    image: item.originalImage || null,
+                    resultImage: item.resultImage || null,
+                    assignedTo: item.assignedTo || 'Unassigned',
+                    problemDetected: item.problemDetected || false
+                }));
             } else {
-                reportsData = mockReports;
+                reportsData = [...mockReports.map(r => ({...r}))];
             }
         } catch (e) {
             console.warn('Using static reports. Reason:', e.message);
-            reportsData = mockReports;
+            reportsData = [...mockReports.map(r => ({...r}))];
         }
+        // Apply any previously saved statuses
+        applySavedStatuses();
         updateSummary();
         applyFilter();
     };
@@ -188,18 +225,136 @@ document.addEventListener('DOMContentLoaded', () => {
             <div class="rd-field"><div class="rd-field-label"><i class="fas fa-user-cog"></i> Assigned To</div><div class="rd-field-value">${item.assignedTo || 'Unassigned'}</div></div>
         `;
 
-        document.getElementById('rdMessage').innerHTML = `<h4><i class="fas fa-comment-alt"></i> Description</h4><p>${item.message}</p>`;
+        document.getElementById('rdMessage').innerHTML = `<h4><i class="fas fa-comment-alt"></i> Description</h4><p>${item.message || 'No description provided.'}</p>`;
+
+        // Set current status in dropdown
+        currentEditingId = item.id;
+        const statusSelect = document.getElementById('rdStatusSelect');
+        if (statusSelect) {
+            statusSelect.value = item.status || 'pending';
+        }
 
         const imgBox = document.getElementById('rdImageBox');
-        if (item.image) {
-            document.getElementById('rdImage').src = item.image;
+        const hasOriginal = item.image || item.originalImage;
+        const hasResult = item.resultImage;
+
+        if (hasOriginal || hasResult) {
+            let imagesHtml = '';
+            
+            if (hasOriginal) {
+                imagesHtml += `
+                    <div style="padding: 12px 16px; background: var(--bg-main); border-bottom: 1px solid var(--border-color); display: flex; align-items: center; gap: 8px;">
+                        <i class="fas fa-camera" style="color: var(--primary-color);"></i>
+                        <span style="font-size: 0.85rem; font-weight: 800; color: var(--text-main);">📸 Original Evidence</span>
+                    </div>
+                    <img src="${hasOriginal}" alt="Original Evidence" style="width:100%; display:block;">`;
+            }
+            
+            if (hasResult) {
+                imagesHtml += `
+                    <div style="padding: 12px 16px; background: var(--bg-main); border-bottom: 1px solid var(--border-color); border-top: 1px solid var(--border-color); display: flex; align-items: center; gap: 8px; margin-top: 4px;">
+                        <i class="fas fa-robot" style="color: #ef4444;"></i>
+                        <span style="font-size: 0.85rem; font-weight: 800; color: var(--text-main);">🤖 AI Detection Result</span>
+                    </div>
+                    <img src="${hasResult}" alt="AI Detection Result" style="width:100%; display:block;">`;
+            }
+
+            imgBox.innerHTML = imagesHtml;
             imgBox.style.display = 'block';
         } else {
+            imgBox.innerHTML = '';
             imgBox.style.display = 'none';
         }
 
         document.getElementById('reportDetailModal').classList.add('active');
     };
+
+    // New: Update Status Logic
+    document.getElementById('saveStatusBtn').addEventListener('click', async () => {
+        if (!currentEditingId) return;
+        
+        const newStatus = document.getElementById('rdStatusSelect').value;
+        const btn = document.getElementById('saveStatusBtn');
+        const originalText = btn.innerHTML;
+
+        // Show loading state
+        btn.disabled = true;
+        btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Saving...';
+
+        try {
+            // Attempt to update via API
+            // Based on Bus API pattern: PUT /api/complaints/status/{id}?status={status}
+            const updateUrl = `${API}/status/${currentEditingId}?status=${newStatus}`;
+            const res = await fetch(updateUrl, { method: 'PUT' });
+
+            if (res.ok) {
+                // Update local data
+                const index = reportsData.findIndex(r => r.id === currentEditingId);
+                if (index !== -1) reportsData[index].status = newStatus;
+                saveStatusesToStorage();
+                
+                renderTable(reportsData);
+                updateSummary();
+                
+                Swal.fire({
+                    icon: 'success',
+                    title: 'Status Updated!',
+                    text: `Report #${currentEditingId} is now ${newStatus}.`,
+                    timer: 2000,
+                    showConfirmButton: false,
+                    background: 'var(--bg-card)',
+                    color: 'var(--text-main)'
+                });
+                closeReportDetail();
+            } else {
+                // Fallback for mock data or if API endpoint differs
+                const index = reportsData.findIndex(r => r.id === currentEditingId);
+                if (index !== -1) reportsData[index].status = newStatus;
+                saveStatusesToStorage();
+                renderTable(reportsData);
+                updateSummary();
+                Swal.fire({ icon: 'success', title: 'Updated (Local)', text: 'Status updated in current session.', timer: 1500, showConfirmButton: false, background: 'var(--bg-card)', color: 'var(--text-main)' });
+                closeReportDetail();
+            }
+        } catch (err) {
+            console.error('Update status error:', err);
+            // Local fallback
+            const index = reportsData.findIndex(r => r.id === currentEditingId);
+            if (index !== -1) reportsData[index].status = newStatus;
+            saveStatusesToStorage();
+            renderTable(reportsData);
+            updateSummary();
+            closeReportDetail();
+        } finally {
+            btn.disabled = false;
+            btn.innerHTML = originalText;
+        }
+    });
+
+    // New: Notification Alert Logic
+    window.showNewReportAlert = function() {
+        const alertBox = document.getElementById('newReportAlert');
+        if (!alertBox) return;
+        alertBox.style.visibility = 'visible';
+        alertBox.style.opacity = '1';
+        alertBox.style.transform = 'translateX(-50%) translateY(0)';
+        
+        // Play subtle sound if possible (optional)
+        try { new Audio('https://assets.mixkit.co/active_storage/sfx/2869/2869-preview.mp3').play().catch(()=>{}); } catch(e){}
+    };
+
+    window.hideNewReportAlert = function() {
+        const alertBox = document.getElementById('newReportAlert');
+        if (!alertBox) return;
+        alertBox.style.opacity = '0';
+        alertBox.style.transform = 'translateX(-50%) translateY(-100px)';
+        setTimeout(() => { alertBox.style.visibility = 'hidden'; }, 500);
+    };
+
+    // Listen for custom event from notifications.js
+    window.addEventListener('newReportReceived', () => {
+        showNewReportAlert();
+    });
 
     window.closeReportDetail = function() {
         document.getElementById('reportDetailModal').classList.remove('active');
@@ -226,6 +381,7 @@ document.addEventListener('DOMContentLoaded', () => {
         }).then(result => {
             if (result.isConfirmed) {
                 reportsData[idx].status = 'resolved';
+                saveStatusesToStorage();
                 updateSummary();
                 applyFilter();
                 Swal.fire({ icon: 'success', title: 'Resolved!', text: `${item.id} has been marked as resolved.`, timer: 1800, showConfirmButton: false, background: 'var(--bg-card)', color: 'var(--text-main)' });

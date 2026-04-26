@@ -6,8 +6,8 @@
 (function () {
     'use strict';
 
-    const REPORTS_API  = 'https://transit-way.runasp.net/api/complaints/report';
-    const POLL_INTERVAL_MS = 30000;   // check every 30 s
+    const REPORTS_API  = 'https://transit-way.runasp.net/api/complaints';
+    const POLL_INTERVAL_MS = 15000;   // check every 15 s
     const STORAGE_KEY  = 'tw_seen_report_ids';
 
     // ────────────────────────────────────────────
@@ -243,6 +243,9 @@
                 pendingCount += newOnes.length;
                 localStorage.setItem('tw_pending_notifs', pendingCount);
                 updateBadge(pendingCount);
+
+                // New: Dispatch event for reports-logic.js to show on-page popup
+                window.dispatchEvent(new CustomEvent('newReportReceived', { detail: newOnes }));
             }
         } catch (e) {
             // Silently fail — don't interrupt the user
@@ -254,6 +257,17 @@
         pendingCount = 0;
         localStorage.setItem('tw_pending_notifs', '0');
         updateBadge(0);
+        
+        // Also mark existing reports as seen so we don't get toasts for them
+        fetch(REPORTS_API).then(res => res.json()).then(data => {
+            const reports = Array.isArray(data) ? data : Array.isArray(data.$values) ? data.$values : [];
+            const seen = getSeenIds();
+            reports.forEach(r => {
+                const rid = String(r.id || r.Id || r.complaintId || r.ComplaintId || '');
+                if (rid) seen.add(rid);
+            });
+            saveSeenIds(seen);
+        }).catch(()=>{});
     } else {
         updateBadge(pendingCount);
     }

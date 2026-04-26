@@ -5,12 +5,17 @@ document.addEventListener('DOMContentLoaded', () => {
     // ==========================================
     // بنجيب الاسم من الخزنة، لو مفيش بنحط 'Moscow' افتراضي
     const adminName = localStorage.getItem('activeAdminName') || 'Moscow';
+    if (document.getElementById('topBarName')) document.getElementById('topBarName').innerText = adminName;
     
-    // بنغير الاسم في التوب بار
-    document.getElementById('topBarName').innerText = adminName;
+    const savedPhoto = localStorage.getItem('activeAdminPhoto');
+    if (savedPhoto) {
+        if (document.getElementById('welcomeAvatar')) document.getElementById('welcomeAvatar').src = savedPhoto;
+        const topAvatar = document.querySelector('.top-avatar');
+        if (topAvatar) topAvatar.src = savedPhoto;
+    }
     
     const lang = localStorage.getItem('transitLang') || 'en';
-    document.getElementById('welcomeMessage').innerText = (lang === 'ar' ? 'مرحباً ' : 'Hello ') + adminName + ' !';
+    document.getElementById('welcomeMessage').innerText = (lang === 'ar' ? 'مرحباً بعودتك، ' : 'Welcome Back, ') + adminName + ' !';
 
 
     // ==========================================
@@ -39,6 +44,7 @@ document.addEventListener('DOMContentLoaded', () => {
     let allBuses = [];
     let allDrivers = [];
     let allStations = [];
+    let allComplaints = []; // New
 
     // ─── أحداث التقويم ───
     datePickerInput.addEventListener('change', (e) => {
@@ -123,12 +129,13 @@ document.addEventListener('DOMContentLoaded', () => {
 
         try {
             // جلب كل البيانات بالتوازي
-            const [ticketsRes, busesRes, driversRes, stationsRes, ticketDashRes] = await Promise.allSettled([
+            const [ticketsRes, busesRes, driversRes, stationsRes, ticketDashRes, complaintsRes] = await Promise.allSettled([
                 fetch(`${API_BASE}/Tickets`),
                 fetch(`${API_BASE}/Bus`),
                 fetch(`${API_BASE}/Driver`),
                 fetch(`${API_BASE}/Stations`),
-                fetch(`${API_BASE}/Tickets/dashboard`)
+                fetch(`${API_BASE}/Tickets/dashboard`),
+                fetch(`${API_BASE}/complaints`) // New
             ]);
 
             // ─── التذاكر ───
@@ -157,6 +164,12 @@ document.addEventListener('DOMContentLoaded', () => {
             // ─── إحصائيات التذاكر (API جديد) ───
             if (ticketDashRes.status === 'fulfilled' && ticketDashRes.value.ok) {
                 ticketDashboardData = await ticketDashRes.value.json();
+            }
+
+            // ─── الشكاوى (Activity Feed) ───
+            if (complaintsRes && complaintsRes.status === 'fulfilled' && complaintsRes.value.ok) {
+                const data = await complaintsRes.value.json();
+                allComplaints = Array.isArray(data) ? data : (data.$values || []);
             }
 
         } catch (error) {
@@ -667,77 +680,61 @@ document.addEventListener('DOMContentLoaded', () => {
         const feedList = document.getElementById('activityFeedList');
         if (!feedList) return;
 
-        const now = new Date();
+        const currentLang = localStorage.getItem('transitLang') || 'en';
+        const isAr = currentLang === 'ar';
         const activities = [];
 
-        // Generate realistic activities from actual data
-        const busNames = allBuses.slice(0, 8).map(b => b.busNumber || `B-${b.id}`);
-        const driverNames = allDrivers.slice(0, 8).map(d => d.fullName || d.name || 'Driver');
-
-        // Bus activities
-        if (busNames.length > 0) {
-            activities.push({
-                type: 'bus', dot: 'dot-bus',
-                text: `Bus <strong>${busNames[0]}</strong> started route at ${new Date(now - 15 * 60 * 1000).toLocaleTimeString([], {hour: '2-digit', minute: '2-digit'})}`,
-                time: '15 min ago'
-            });
-            if (busNames[2]) activities.push({
-                type: 'bus', dot: 'dot-bus',
-                text: `Bus <strong>${busNames[2]}</strong> completed daily inspection — all clear`,
-                time: '42 min ago'
-            });
-        }
-
-        // Driver activities
-        if (driverNames.length > 0 && busNames.length > 1) {
-            activities.push({
-                type: 'driver', dot: 'dot-driver',
-                text: `<strong>${driverNames[0]}</strong> assigned to Bus <strong>${busNames[1]}</strong>`,
-                time: '28 min ago'
-            });
-            if (driverNames[3]) activities.push({
-                type: 'driver', dot: 'dot-driver',
-                text: `<strong>${driverNames[3]}</strong> started shift — now on duty`,
-                time: '1 hour ago'
-            });
-        }
-
-        // Ticket activities
-        const recentTicketCount = allTickets.length;
-        if (recentTicketCount > 0) {
+        // 1. Process Recent Tickets
+        const recentTickets = [...allTickets].sort((a, b) => new Date(b.createdAt || b.purchaseDate || 0) - new Date(a.createdAt || a.purchaseDate || 0)).slice(0, 4);
+        recentTickets.forEach(t => {
+            const timeStr = formatRelativeTime(t.createdAt || t.purchaseDate);
             activities.push({
                 type: 'ticket', dot: 'dot-ticket',
-                text: `<strong>${recentTicketCount}</strong> tickets sold today — Revenue: <strong>${(recentTicketCount * 15).toLocaleString()} EGP</strong>`,
-                time: '35 min ago'
+                timestamp: new Date(t.createdAt || t.purchaseDate || 0),
+                text: isAr 
+                    ? `تم شراء تذكرة بواسطة <strong>${t.userName || 'راكب'}</strong> للمسار <strong>${t.routeName || 'عام'}</strong>`
+                    : `Ticket purchased by <strong>${t.userName || 'Passenger'}</strong> for <strong>${t.routeName || 'General'}</strong>`,
+                time: timeStr
             });
-        }
+        });
 
-        // Station activity
-        if (allStations.length > 0) {
-            const stationName = allStations[0]?.name || allStations[0]?.stationName || 'Main Station';
+        // 2. Process Recent Complaints/Reports
+        const recentComplaints = [...allComplaints].sort((a, b) => new Date(b.date || 0) - new Date(a.date || 0)).slice(0, 4);
+        recentComplaints.forEach(c => {
+            const timeStr = formatRelativeTime(c.date);
             activities.push({
-                type: 'station', dot: 'dot-station',
-                text: `Station <strong>${stationName}</strong> reported high traffic volume`,
-                time: '1 hour ago'
+                type: 'report', dot: 'dot-report',
+                timestamp: new Date(c.date || 0),
+                text: isAr
+                    ? `تقرير جديد: <strong>${c.category}</strong> لباص <strong>${c.busId || '—'}</strong>`
+                    : `New report: <strong>${c.category}</strong> for Bus <strong>${c.busId || '—'}</strong>`,
+                time: timeStr
             });
+        });
+
+        // 3. Process New Buses (Guessing by ID)
+        const recentBuses = [...allBuses].sort((a, b) => (b.id || 0) - (a.id || 0)).slice(0, 2);
+        recentBuses.forEach(b => {
+            activities.push({
+                type: 'bus', dot: 'dot-bus',
+                timestamp: new Date(Date.now() - 3600000 * 5), // Mock timestamp for visual variety
+                text: isAr
+                    ? `تم إضافة حافلة جديدة للأسطول رقم <strong>${b.busNumber || b.id}</strong>`
+                    : `New bus added to fleet: <strong>#${b.busNumber || b.id}</strong>`,
+                time: isAr ? 'منذ 5 ساعات' : '5 hours ago'
+            });
+        });
+
+        // Sort everything by timestamp
+        activities.sort((a, b) => b.timestamp - a.timestamp);
+
+        // Render
+        if (activities.length === 0) {
+            feedList.innerHTML = `<div style="padding:20px; text-align:center; color:var(--text-muted); font-size:0.9rem;">${isAr ? 'لا يوجد نشاط مسجل' : 'No recent activity'}</div>`;
+            return;
         }
 
-        // Report activity
-        activities.push({
-            type: 'report', dot: 'dot-report',
-            text: `New maintenance report received — <strong>review pending</strong>`,
-            time: '2 hours ago'
-        });
-
-        // Admin activity
-        activities.push({
-            type: 'admin', dot: 'dot-admin',
-            text: `System settings updated by <strong>${adminName}</strong>`,
-            time: '3 hours ago'
-        });
-
-        // Sort and render (max 8)
-        feedList.innerHTML = activities.slice(0, 8).map(act => `
+        feedList.innerHTML = activities.slice(0, 10).map(act => `
             <div class="activity-item">
                 <div class="activity-dot-wrap">
                     <div class="activity-dot ${act.dot}"></div>
@@ -748,6 +745,23 @@ document.addEventListener('DOMContentLoaded', () => {
                 </div>
             </div>
         `).join('');
+    }
+
+    function formatRelativeTime(dateStr) {
+        if (!dateStr) return '—';
+        const date = new Date(dateStr);
+        const now = new Date();
+        const diffMs = now - date;
+        const diffMin = Math.floor(diffMs / 60000);
+        const diffHr = Math.floor(diffMin / 60);
+        const diffDay = Math.floor(diffHr / 24);
+
+        const isAr = (localStorage.getItem('transitLang') || 'en') === 'ar';
+
+        if (diffMin < 1) return isAr ? 'الآن' : 'Just now';
+        if (diffMin < 60) return isAr ? `منذ ${diffMin} دقيقة` : `${diffMin} min ago`;
+        if (diffHr < 24) return isAr ? `منذ ${diffHr} ساعة` : `${diffHr} hours ago`;
+        return isAr ? `منذ ${diffDay} يوم` : `${diffDay} days ago`;
     }
 
 

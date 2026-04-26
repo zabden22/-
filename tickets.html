@@ -34,10 +34,15 @@
 
         <main class="main-content">
             <header class="top-bar">
-                <h2 class="path-title">Tickets & Sales</h2>
+                <div class="top-left" style="display: flex; align-items: center; gap: 15px;">
+                    <button class="hamburger-btn" id="sidebarToggle" style="background: var(--bg-card); border: 1px solid var(--border-color); width: 40px; height: 40px; border-radius: 10px; color: var(--text-main); cursor: pointer; display: flex; align-items: center; justify-content: center; font-size: 1.1rem; transition: 0.3s;">
+                        <i class="fas fa-bars"></i>
+                    </button>
+                    <h2 class="path-title" style="margin-bottom: 0;">Tickets & Sales</h2>
+                </div>
                 <div class="top-controls">
                     <div class="user-info">
-                        <i class="fas fa-user-circle"></i>
+                        <img src="https://ui-avatars.com/api/?name=Moscow&background=random&color=fff&rounded=true&bold=true&size=32" class="top-avatar" style="width: 32px; height: 32px; border-radius: 50%; border: 2px solid var(--primary-color);">
                         <span id="topBarName">Loading...</span>
                         <i class="fas fa-chevron-down arrow-icon"></i>
                     </div>
