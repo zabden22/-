@@ -163,6 +163,17 @@ document.addEventListener('DOMContentLoaded', () => {
                             </button>
                         </div>
                     </td>
+                    <td>
+                        <button class="route-action-btn map-btn view-route-map"
+                            data-id="${rId}"
+                            data-name="${rName}"
+                            data-zone="${rZone}"
+                            data-num="${rNum}"
+                            data-status="${rStatus}"
+                            title="View on Map">
+                            <i class="fas fa-map-marked-alt"></i>
+                        </button>
+                    </td>
                 </tr>`;
             tbody.insertAdjacentHTML('beforeend', row);
         });
@@ -180,6 +191,215 @@ document.addEventListener('DOMContentLoaded', () => {
             displayRoutes(filtered);
         });
     }
+
+    // ===================== OSRM Map =====================
+    let osrmMap = null;
+    let osrmRouteLayer = null;
+    let osrmMarkers = [];
+
+    window.closeRouteMap = function () {
+        document.getElementById('routeMapModal').classList.remove('active');
+        if (osrmMap) { osrmMap.remove(); osrmMap = null; }
+        osrmRouteLayer = null;
+        osrmMarkers = [];
+    };
+
+    // Close on backdrop click
+    document.getElementById('routeMapModal').addEventListener('click', function(e) {
+        if (e.target === this) window.closeRouteMap();
+    });
+
+    async function openOsrmRouteMap(routeId, routeName, routeZone, routeNum, routeStatus) {
+        const modal   = document.getElementById('routeMapModal');
+        const loading = document.getElementById('routeMapLoading');
+        const title   = document.getElementById('routeMapTitle');
+        const infoBar = document.getElementById('routeMapInfoBar');
+        const distEl  = document.getElementById('osrmDistanceInfo');
+
+        console.log('[OSRM] Opening map for route:', routeId, routeName, routeZone);
+
+        // Reset previous map
+        if (osrmMap) { try { osrmMap.remove(); } catch(e){} osrmMap = null; }
+        osrmRouteLayer = null; osrmMarkers = [];
+        loading.style.display = 'flex';
+        distEl.textContent = '—';
+        title.textContent  = routeName || `Route #${routeId}`;
+        modal.classList.add('active');
+
+        // Info chips
+        const isActive = String(routeStatus).toLowerCase() === 'active';
+        infoBar.innerHTML = `
+            <span class="route-map-chip chip-blue"><i class="fas fa-hashtag"></i> ${routeNum || routeId}</span>
+            <span class="route-map-chip chip-purple"><i class="fas fa-layer-group"></i> ${routeZone || 'No Zone'}</span>
+            <span class="route-map-chip ${isActive ? 'chip-green' : ''}"
+                  style="${!isActive ? 'background:rgba(239,68,68,0.1);color:#ef4444;' : ''}">
+                <i class="fas fa-circle" style="font-size:0.5rem;"></i> ${isActive ? 'Active' : 'Inactive'}
+            </span>`;
+
+        // Get stations for this route (by zone match — case insensitive + trimmed)
+        let stations = [];
+        const zoneClean = (routeZone || '').trim().toLowerCase().replace(/\s+/g, ' ');
+        if (zoneClean) {
+            stations = allStationsData.filter(s => {
+                const sz = (gp(s, 'zone') ?? '').trim().toLowerCase().replace(/\s+/g, ' ');
+                return sz === zoneClean;
+            });
+        }
+        if (stations.length === 0) {
+            stations = allStationsData.filter(s => {
+                const sid = String(gp(s, 'routeId') ?? gp(s, 'zone') ?? '').trim().toLowerCase();
+                return sid === String(routeId).trim().toLowerCase();
+            });
+        }
+        console.log('[OSRM] Found stations:', stations.length, 'for zone:', routeZone);
+
+        // Parse lat/lng from stations
+        function parseLatLng(st) {
+            const latLong = gp(st, 'latlong') || gp(st, 'latLong') || '';
+            if (latLong && (latLong.includes('&') || latLong.includes(','))) {
+                const sep = latLong.includes('&') ? '&' : ',';
+                const parts = latLong.split(sep).map(v => parseFloat(v.trim()));
+                if (parts.length >= 2 && !isNaN(parts[0]) && !isNaN(parts[1]) && parts[0] !== 0) {
+                    return { lat: parts[0], lng: parts[1] };
+                }
+            }
+            const lat = parseFloat(gp(st, 'latitude') ?? gp(st, 'lat') ?? 0);
+            const lng = parseFloat(gp(st, 'longitude') ?? gp(st, 'lng') ?? 0);
+            if (!isNaN(lat) && !isNaN(lng) && lat !== 0) return { lat, lng };
+            return null;
+        }
+
+        const validStations = stations
+            .map(s => ({ name: gp(s, 'name') || 'Station', coords: parseLatLng(s) }))
+            .filter(s => s.coords !== null);
+
+        console.log('[OSRM] Valid stations with coords:', validStations.length);
+
+        // Wait for modal to fully render before creating map
+        await new Promise(r => setTimeout(r, 400));
+
+        // Init Leaflet map
+        try {
+            osrmMap = L.map('routeLeafletMap', { zoomControl: true })
+                .setView([30.0691, 31.3381], 11);
+
+            L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png', {
+                attribution: '© CartoDB',
+                maxZoom: 19
+            }).addTo(osrmMap);
+
+            // Force Leaflet to recalculate container size
+            setTimeout(() => { if (osrmMap) osrmMap.invalidateSize(); }, 200);
+        } catch (mapErr) {
+            console.error('[OSRM] Map init error:', mapErr);
+            loading.style.display = 'none';
+            distEl.textContent = 'Map initialization failed';
+            return;
+        }
+
+        if (validStations.length === 0) {
+            loading.style.display = 'none';
+            distEl.textContent = 'No station coordinates found';
+            console.warn('[OSRM] No valid coordinates for this route');
+            return;
+        }
+
+        // Add station markers
+        validStations.forEach((st, i) => {
+            const color = i === 0 ? '#22c55e' : i === validStations.length - 1 ? '#ef4444' : '#3b82f6';
+            const icon = L.divIcon({
+                className: '',
+                html: `<div style="
+                    background:${color}; color:#fff;
+                    border-radius:50%; width:28px; height:28px;
+                    display:flex;align-items:center;justify-content:center;
+                    font-size:11px; font-weight:900;
+                    border:3px solid #fff;
+                    box-shadow:0 3px 10px rgba(0,0,0,0.25);
+                    font-family:'Plus Jakarta Sans',sans-serif;
+                ">${i + 1}</div>`,
+                iconSize: [28, 28],
+                iconAnchor: [14, 14]
+            });
+            const m = L.marker([st.coords.lat, st.coords.lng], { icon })
+                .addTo(osrmMap)
+                .bindPopup(`<b style="color:${color};">${i === 0 ? '🟢 Start' : i === validStations.length - 1 ? '🔴 End' : `📍 Stop ${i+1}`}</b><br>${st.name}`);
+            osrmMarkers.push(m);
+        });
+
+        // Call OSRM route API
+        try {
+            const coordsStr = validStations
+                .map(s => `${s.coords.lng},${s.coords.lat}`)
+                .join(';');
+
+            const osrmUrl = `https://router.project-osrm.org/route/v1/driving/${coordsStr}?overview=full&geometries=geojson&steps=false`;
+            console.log('[OSRM] Fetching route:', osrmUrl);
+            const res = await fetch(osrmUrl);
+
+            if (!res.ok) throw new Error(`OSRM HTTP ${res.status}`);
+            const data = await res.json();
+            console.log('[OSRM] Response code:', data.code);
+
+            if (data.code !== 'Ok' || !data.routes || data.routes.length === 0) {
+                throw new Error('No route found: ' + data.code);
+            }
+
+            const route = data.routes[0];
+            const geojson = route.geometry;
+
+            // Draw glow line first (behind)
+            L.geoJSON(geojson, {
+                style: { color: '#93c5fd', weight: 10, opacity: 0.25, lineCap: 'round' }
+            }).addTo(osrmMap);
+
+            // Draw the OSRM polyline on top
+            osrmRouteLayer = L.geoJSON(geojson, {
+                style: {
+                    color: '#3b82f6', weight: 5, opacity: 0.9,
+                    lineCap: 'round', lineJoin: 'round'
+                }
+            }).addTo(osrmMap);
+
+            // Fit map to route
+            osrmMap.fitBounds(osrmRouteLayer.getBounds(), { padding: [40, 40] });
+
+            // Distance & duration info
+            const distKm = (route.distance / 1000).toFixed(1);
+            const durMin = Math.round(route.duration / 60);
+            distEl.innerHTML = `<i class="fas fa-road" style="color:#3b82f6;"></i> ${distKm} km &nbsp;|&nbsp; <i class="fas fa-clock" style="color:#10b981;"></i> ~${durMin} min`;
+            infoBar.innerHTML += `<span class="route-map-chip chip-orange"><i class="fas fa-map-pin"></i> ${validStations.length} Stations</span>`;
+
+            console.log('[OSRM] ✅ Route drawn successfully:', distKm, 'km');
+
+        } catch (err) {
+            console.warn('[OSRM] ⚠️ Error:', err.message);
+            // Fallback: draw a simple polyline between stations
+            const latlngs = validStations.map(s => [s.coords.lat, s.coords.lng]);
+            osrmRouteLayer = L.polyline(latlngs, {
+                color: '#f97316', weight: 4, opacity: 0.8, dashArray: '10, 8'
+            }).addTo(osrmMap);
+            osrmMap.fitBounds(osrmRouteLayer.getBounds(), { padding: [40, 40] });
+            distEl.innerHTML = `<i class="fas fa-exclamation-triangle" style="color:#f97316;"></i> OSRM unavailable — showing straight-line path`;
+        }
+
+        loading.style.display = 'none';
+        // Final size fix after everything is drawn
+        setTimeout(() => { if (osrmMap) osrmMap.invalidateSize(); }, 300);
+    }
+
+    // Click handler for Map buttons
+    document.getElementById('routeTableBody').addEventListener('click', (e) => {
+        const btn = e.target.closest('.view-route-map');
+        if (!btn) return;
+        openOsrmRouteMap(
+            btn.dataset.id,
+            btn.dataset.name,
+            btn.dataset.zone,
+            btn.dataset.num,
+            btn.dataset.status
+        );
+    });
 
     // Delete
     const tbody = document.getElementById('routeTableBody');

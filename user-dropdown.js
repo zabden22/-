@@ -10,17 +10,14 @@
 
         const adminName = localStorage.getItem('activeAdminName') || 'Admin';
 
-        // Set the top bar name and avatar
+        // Set initial temporary values
         const nameSpan = userInfo.querySelector('#topBarName');
         const topAvatarImg = userInfo.querySelector('.top-avatar');
-        if (nameSpan) nameSpan.innerText = adminName;
-        
         const savedPhoto = localStorage.getItem('activeAdminPhoto');
-        if (topAvatarImg && savedPhoto) {
-            topAvatarImg.src = savedPhoto;
-        }
+        if (nameSpan) nameSpan.innerText = adminName;
+        if (topAvatarImg && savedPhoto) topAvatarImg.src = savedPhoto;
 
-        // Inject dropdown HTML
+        // Inject dropdown HTML structure
         const dropdown = document.createElement('div');
         dropdown.className = 'user-dropdown';
         dropdown.id = 'userDropdown';
@@ -28,9 +25,9 @@
         
         dropdown.innerHTML = `
             <div class="ud-header">
-                <img class="ud-avatar" src="${avatarSrc}" alt="${adminName}">
+                <img class="ud-avatar" id="dropdownAvatar" src="${avatarSrc}" alt="${adminName}">
                 <div>
-                    <p class="ud-name">${adminName}</p>
+                    <p class="ud-name" id="dropdownName">${adminName}</p>
                     <p class="ud-role">System Administrator</p>
                 </div>
             </div>
@@ -41,6 +38,46 @@
             <div class="ud-item danger" id="udLogout"><i class="fas fa-sign-out-alt"></i> Log Out</div>
         `;
         userInfo.appendChild(dropdown);
+
+        // Fetch real data from DB asynchronously to keep top bar strictly synced
+        async function syncTopBarWithDB() {
+            try {
+                const token = localStorage.getItem('adminToken');
+                const email = localStorage.getItem('adminEmail');
+                if (!email) return;
+
+                const headers = token ? { 'Authorization': `Bearer ${token}` } : {};
+                const res = await fetch('https://transit-way.runasp.net/api/admin', { headers });
+                if (!res.ok) return;
+
+                const data = await res.json();
+                const adminsList = Array.isArray(data) ? data : (data.$values || []);
+                const currentAdmin = adminsList.find(a => (a.email || '').toLowerCase() === email.toLowerCase());
+
+                if (currentAdmin) {
+                    const realName = currentAdmin.fullName || currentAdmin.phoneNumber || adminName;
+                    const realPhoto = currentAdmin.photoUrl;
+
+                    // Update UI elements directly
+                    if (nameSpan) nameSpan.innerText = realName;
+                    const dropName = document.getElementById('dropdownName');
+                    if (dropName) dropName.innerText = realName;
+
+                    if (realPhoto) {
+                        const newAvatar = realPhoto + (realPhoto.includes('?') ? '' : `?t=${Date.now()}`);
+                        if (topAvatarImg) topAvatarImg.src = newAvatar;
+                        const dropAvatar = document.getElementById('dropdownAvatar');
+                        if (dropAvatar) dropAvatar.src = newAvatar;
+                        // Save latest to localStorage for fast initial load next time
+                        localStorage.setItem('activeAdminPhoto', realPhoto);
+                    }
+                    localStorage.setItem('activeAdminName', realName);
+                }
+            } catch (err) {
+                console.warn('Failed to sync top bar profile:', err);
+            }
+        }
+        syncTopBarWithDB();
 
         // Toggle dropdown on click
         userInfo.addEventListener('click', (e) => {
@@ -77,13 +114,13 @@
                 if (typeof Swal !== 'undefined') {
                     const isAr = (typeof getLang === 'function' && getLang() === 'ar');
                     Swal.fire({
-                        title: isAr ? 'تسجيل الخروج؟' : 'Log Out?',
-                        text: isAr ? 'هل أنت متأكد؟' : 'Are you sure you want to sign out?',
-                        icon: 'warning',
+                        title: isAr ? 'تسجيل الخروج من لوحة التحكم' : 'Log Out from Dashboard',
+                        text: isAr ? 'سيتم تسجيل خروجك والعودة إلى صفحة تسجيل الدخول' : 'You will be signed out and returned to the login page.',
+                        icon: 'question',
                         showCancelButton: true,
                         confirmButtonColor: '#ef4444',
                         cancelButtonColor: '#64748b',
-                        confirmButtonText: isAr ? 'نعم' : 'Yes, Log Out',
+                        confirmButtonText: isAr ? 'تسجيل الخروج' : 'Yes, Log Out',
                         cancelButtonText: isAr ? 'إلغاء' : 'Cancel',
                         background: 'var(--bg-card)',
                         color: 'var(--text-main)'

@@ -9,6 +9,7 @@
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script src="i18n.js?v=1.1"></script>
+    <script src="global.js"></script>
     
     <script src="user-dropdown.js"></script>
 </head>
@@ -25,6 +26,7 @@
                 <a href="admins.html" data-i18n="admins"><i class="fas fa-user-shield"></i> Admins</a>
                 <a href="buses.html" data-i18n="buses"><i class="fas fa-bus"></i> Buses</a>
                 <a href="drivers.html" class="active" data-i18n="drivers"><i class="fas fa-users"></i> Drivers</a>
+                <a href="users.html" data-i18n="users"><i class="fas fa-user"></i> Users</a>
                 <a href="stations.html" data-i18n="stations"><i class="fas fa-map-marker-alt"></i> Stations</a>
                 <a href="tickets.html" data-i18n="tickets"><i class="fas fa-ticket-alt"></i> Tickets</a>
                 <a href="routes.html" data-i18n="routes"><i class="fas fa-route"></i> Routes</a>
@@ -169,7 +171,12 @@
     <div class="driver-profile-overlay" id="driverProfileModal">
         <div class="driver-profile-panel">
             <div class="dp-header">
-                <img class="dp-header-avatar" id="dpAvatar" src="" alt="Driver">
+                <div style="position:relative;">
+                    <img class="dp-header-avatar" id="dpAvatar" src="" alt="Driver" style="object-fit:cover;">
+                    <button class="change-photo-btn" id="dpChangePhotoBtn" style="position:absolute; bottom:5px; right:5px; width:32px; height:32px; border-radius:50%; background:var(--primary-color); color:white; border:2px solid white; cursor:pointer; display:flex; align-items:center; justify-content:center; font-size:0.9rem; box-shadow:0 4px 10px rgba(0,0,0,0.2);">
+                        <i class="fas fa-camera"></i>
+                    </button>
+                </div>
                 <div class="dp-header-info">
                     <h2 id="dpName">Driver Name</h2>
                     <div class="dp-header-meta">

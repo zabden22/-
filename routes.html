@@ -5,6 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>TransitWay - Routes Management</title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
     <link rel="stylesheet" href="dashboard-style.css">
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
     <script src="notifications.js?v=1.1"></script>
@@ -106,10 +107,87 @@
         }
         .route-action-btn:hover { border-color: var(--primary-color); color: var(--primary-color); transform: scale(1.1); }
         .route-action-btn.danger:hover { border-color: #ef4444; color: #ef4444; }
+        .route-action-btn.map-btn:hover { border-color: #3b82f6; color: #3b82f6; }
+
+        /* ── OSRM Route Map Modal ── */
+        #routeMapModal {
+            display: none; position: fixed; inset: 0; z-index: 9999;
+            background: rgba(0,0,0,0.65); backdrop-filter: blur(6px);
+            align-items: center; justify-content: center;
+        }
+        #routeMapModal.active { display: flex; }
+        .route-map-card {
+            background: var(--bg-card); border-radius: 24px;
+            box-shadow: 0 24px 80px rgba(0,0,0,0.35);
+            width: 90%; max-width: 900px;
+            overflow: hidden; display: flex; flex-direction: column;
+            max-height: 92vh;
+        }
+        .route-map-header {
+            display: flex; align-items: center; justify-content: space-between;
+            padding: 20px 24px; border-bottom: 1px solid var(--border-color);
+            background: linear-gradient(135deg, rgba(59,130,246,0.06), rgba(86,142,116,0.04));
+        }
+        .route-map-header h3 {
+            margin: 0; font-size: 1.1rem; font-weight: 800; color: var(--text-main);
+            display: flex; align-items: center; gap: 10px;
+        }
+        .route-map-header h3 i { color: #3b82f6; }
+        .route-map-close {
+            width: 36px; height: 36px; border-radius: 10px; border: 1px solid var(--border-color);
+            background: var(--bg-main); color: var(--text-muted);
+            display: flex; align-items: center; justify-content: center;
+            cursor: pointer; transition: all 0.2s; font-size: 1rem;
+        }
+        .route-map-close:hover { background: #ef4444; color: #fff; border-color: #ef4444; }
+        .route-map-info-bar {
+            display: flex; gap: 14px; padding: 14px 24px;
+            border-bottom: 1px solid var(--border-color); flex-wrap: wrap;
+        }
+        .route-map-chip {
+            display: inline-flex; align-items: center; gap: 6px;
+            padding: 6px 14px; border-radius: 20px; font-size: 0.8rem; font-weight: 700;
+        }
+        .chip-blue { background: rgba(59,130,246,0.1); color: #3b82f6; }
+        .chip-green { background: rgba(16,185,129,0.1); color: #10b981; }
+        .chip-purple { background: rgba(139,92,246,0.1); color: #8b5cf6; }
+        .chip-orange { background: rgba(249,115,22,0.1); color: #f97316; }
+        #routeMapContainer {
+            flex: 1; min-height: 420px;
+            position: relative;
+        }
+        #routeLeafletMap {
+            width: 100%; height: 100%; min-height: 420px;
+        }
+        #routeMapLoading {
+            position: absolute; inset: 0; display: flex; flex-direction: column;
+            align-items: center; justify-content: center; gap: 14px;
+            background: var(--bg-card); z-index: 10;
+        }
+        #routeMapLoading .spin-ring {
+            width: 52px; height: 52px; border-radius: 50%;
+            border: 4px solid rgba(59,130,246,0.15);
+            border-top-color: #3b82f6;
+            animation: spin-osrm 0.9s linear infinite;
+        }
+        @keyframes spin-osrm { to { transform: rotate(360deg); } }
+        #routeMapLoading p {
+            color: var(--text-muted); font-weight: 700; font-size: 0.9rem; margin: 0;
+        }
+        .route-map-footer {
+            padding: 14px 24px; border-top: 1px solid var(--border-color);
+            display: flex; align-items: center; justify-content: space-between;
+            background: var(--bg-main);
+        }
+        .route-map-footer span {
+            font-size: 0.8rem; color: var(--text-muted); font-weight: 600;
+        }
+        #osrmDistanceInfo { font-weight: 800; color: var(--text-main); font-size: 0.9rem; }
 
         @media (max-width: 768px) {
             .routes-hero { flex-direction: column; text-align: center; }
             .route-stats-bar { grid-template-columns: repeat(2, 1fr); }
+            .route-map-card { width: 98%; max-height: 95vh; }
         }
     </style>
 </head>
@@ -126,6 +204,7 @@
                 <a href="admins.html" data-i18n="admins"><i class="fas fa-user-shield"></i> Admins</a>
                 <a href="buses.html" data-i18n="buses"><i class="fas fa-bus"></i> Buses</a>
                 <a href="drivers.html" data-i18n="drivers"><i class="fas fa-users"></i> Drivers</a>
+                <a href="users.html" data-i18n="users"><i class="fas fa-user"></i> Users</a>
                 <a href="stations.html" data-i18n="stations"><i class="fas fa-map-marker-alt"></i> Stations</a>
                 <a href="tickets.html" data-i18n="tickets"><i class="fas fa-ticket-alt"></i> Tickets</a>
                 <a href="routes.html" class="active" data-i18n="routes"><i class="fas fa-route"></i> Routes</a>
@@ -156,7 +235,7 @@
                 <div class="routes-hero-icon"><i class="fas fa-route"></i></div>
                 <div class="routes-hero-text">
                     <h2>Transit Network Routes</h2>
-                    <p>Manage bus routes, zones, and station assignments across the city network</p>
+                    <p>Manage bus routes, zones, and station assignments — powered by <strong style="color:#3b82f6;">OSRM</strong> real road routing</p>
                 </div>
             </div>
 
@@ -215,6 +294,7 @@
                             <th>Stations</th>
                             <th>Status</th>
                             <th>Actions</th>
+                            <th>Map</th>
                         </tr>
                     </thead>
                     <tbody id="routeTableBody">
@@ -222,6 +302,28 @@
                 </table>
             </section>
         </main>
+    </div>
+
+    <!-- OSRM Route Map Modal -->
+    <div id="routeMapModal">
+        <div class="route-map-card">
+            <div class="route-map-header">
+                <h3><i class="fas fa-route"></i> <span id="routeMapTitle">Route Map</span></h3>
+                <div class="route-map-close" onclick="closeRouteMap()"><i class="fas fa-times"></i></div>
+            </div>
+            <div class="route-map-info-bar" id="routeMapInfoBar"></div>
+            <div id="routeMapContainer">
+                <div id="routeMapLoading">
+                    <div class="spin-ring"></div>
+                    <p>Calculating road route via OSRM...</p>
+                </div>
+                <div id="routeLeafletMap"></div>
+            </div>
+            <div class="route-map-footer">
+                <span>Powered by <strong>OSRM</strong> + OpenStreetMap</span>
+                <span id="osrmDistanceInfo">—</span>
+            </div>
+        </div>
     </div>
 
     <!-- Add Route Modal -->
@@ -249,6 +351,7 @@
         </div>
     </div>
 
-    <script src="routes-logic.js?v=2.0"></script>
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <script src="routes-logic.js?v=3.0"></script>
 </body>
 </html>

@@ -192,6 +192,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     license: d.licenseNumber || d.license || '—',
                     phone:   d.phoneNumber || d.phone    || '—',
                     email:   d.email || '—',
+                    photo:   d.photo || null,
                     busId,
                     busName,
                     status:  d.isActive === false ? 'Inactive' : (d.status || 'Active')
@@ -245,12 +246,22 @@ document.addEventListener('DOMContentLoaded', () => {
                 ? `<span style="background:var(--bg-main); border:1px solid var(--border-color); padding:5px 10px; border-radius:8px; font-weight:800; font-size:0.85rem;"><i class="fas fa-bus" style="color:var(--primary-color); margin-right:5px;"></i>${driver.busName}</span>`
                 : `<span style="color:var(--text-muted); font-weight:bold;">Unassigned</span>`;
 
+            const driverAvatarSrc = driver.photo || `https://ui-avatars.com/api/?name=${encodeURIComponent(driver.name)}&background=568e74&color=fff&size=100&bold=true`;
+            const driverFallback = `https://ui-avatars.com/api/?name=${encodeURIComponent(driver.name)}&background=568e74&color=fff&size=100&bold=true`;
+
             const row = `
                 <tr>
                     <td>
                         <div style="display:flex; align-items:center; gap:12px;">
-                            <img src="https://ui-avatars.com/api/?name=${encodeURIComponent(driver.name)}&background=random&color=fff&rounded=true&bold=true"
-                                 alt="Avatar" style="width:38px; height:38px; border-radius:50%; box-shadow:0 2px 5px rgba(0,0,0,0.1);">
+                            <div style="position:relative;">
+                                <img src="${driverAvatarSrc}" 
+                                     id="driver-avatar-${driver.id}"
+                                     alt="Avatar" style="width:38px; height:38px; border-radius:50%; box-shadow:0 2px 5px rgba(0,0,0,0.1); object-fit:cover;"
+                                     onerror="this.onerror=null; this.src='${driverFallback}'">
+                                <button onclick="triggerPhotoUpload('Driver', ${driver.id})" style="position:absolute; bottom:-2px; right:-2px; width:16px; height:16px; border-radius:50%; background:var(--primary-color); color:white; border:none; cursor:pointer; display:flex; align-items:center; justify-content:center; font-size:0.5rem;">
+                                    <i class="fas fa-camera"></i>
+                                </button>
+                            </div>
                             <span style="font-weight:700;">${driver.name}</span>
                         </div>
                     </td>
@@ -523,7 +534,11 @@ document.addEventListener('DOMContentLoaded', () => {
         };
 
         // Header
-        document.getElementById('dpAvatar').src = `https://ui-avatars.com/api/?name=${encodeURIComponent(displayData.name)}&background=568e74&color=fff&size=150&bold=true`;
+        const dpAvatarEl = document.getElementById('dpAvatar');
+        const driverPhotoFromDb = driverObj.photo || null;
+        dpAvatarEl.src = driverPhotoFromDb || `https://ui-avatars.com/api/?name=${encodeURIComponent(displayData.name)}&background=568e74&color=fff&size=120&bold=true`;
+        dpAvatarEl.onerror = function() { this.onerror=null; this.src=`https://ui-avatars.com/api/?name=${encodeURIComponent(displayData.name)}&background=568e74&color=fff&size=120&bold=true`; };
+        document.getElementById('dpChangePhotoBtn').onclick = () => triggerPhotoUpload('Driver', driverId);
         document.getElementById('dpName').textContent = displayData.name;
         document.getElementById('dpId').textContent = `#${driverId}`;
 

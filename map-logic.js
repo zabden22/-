@@ -88,6 +88,9 @@ document.addEventListener('DOMContentLoaded', () => {
     let heatLayer = null;
     let heatmapOn = false;
     let isSimulationActive = false; // true while route animation is running
+    let realBusRouteMarkers = {};      // markers for real buses placed on routes (no GPS fallback)
+    let realBusRouteIntervals = [];    // animation intervals for route-placed real buses
+    let routeIdToZoneMap = {};         // numeric routeId → zone name mapping
 
     // ==========================================
     // 5. City-Based Color mapping
@@ -95,8 +98,8 @@ document.addEventListener('DOMContentLoaded', () => {
     const CITY_COLORS = {
         cairo: '#3b82f6',    // Blue
         shorouk: '#ef4444',  // Red
-        badr: '#10b981',     // Green
-        madinaty: '#f59e0b', // Orange
+        badr: '#8b5cf6',     // Purple (Updated)
+        madinaty: '#ff6b00', // Orange
         default: '#94a3b8'
     };
 
@@ -111,10 +114,10 @@ document.addEventListener('DOMContentLoaded', () => {
         const rIdStr = String(routeId || "").toLowerCase();
         
         // Match by Name or Zone identifiers
-        if (rName.includes('cairo') || rName.includes('قاهره') || rName.includes('قاهرة')) return CITY_COLORS.cairo;
-        if (rName.includes('shorouk') || rName.includes('شروق')) return CITY_COLORS.shorouk;
-        if (rName.includes('badr') || rName.includes('بدر')) return CITY_COLORS.badr;
-        if (rName.includes('madinaty') || rName.includes('مدينتي') || rName.includes('مدينتى')) return CITY_COLORS.madinaty;
+        if (rName.includes('cairo') || rName.includes('ain shams') || rName.includes('asmarat')) return CITY_COLORS.cairo;
+        if (rName.includes('shrouk') || rName.includes('shorouk') || rName.includes('شروق') || rName.includes('academy')) return CITY_COLORS.shorouk;
+        if (rName.includes('badr') || rName.includes('بدر') || rName.includes('haram') || rName.includes('horeyya')) return CITY_COLORS.badr;
+        if (rName.includes('madinaty') || rName.includes('madinty') || rName.includes('مدينتي') || rName.includes('مدينتى') || rName.includes('open air mall')) return CITY_COLORS.madinaty;
 
         // Fallback to rotating palette
         if (!routeId) return CITY_COLORS.default;
@@ -165,9 +168,9 @@ document.addEventListener('DOMContentLoaded', () => {
                 return {
                     id: getPropIgnoreCase(st, 'id'),
                     name: getPropIgnoreCase(st, 'name') ?? 'Unknown Station',
-                    routeId: getPropIgnoreCase(st, 'routeId') ?? getPropIgnoreCase(st, 'route_id') ?? 1,
-                    routeName: getPropIgnoreCase(st, 'routeName') ?? getPropIgnoreCase(st, 'route') ?? '',
                     zone: getPropIgnoreCase(st, 'zone') ?? '',
+                    routeId: getPropIgnoreCase(st, 'zone') || getPropIgnoreCase(st, 'routeId') || 'Unknown',
+                    routeName: getPropIgnoreCase(st, 'zone') || getPropIgnoreCase(st, 'routeName') || 'Unknown',
                     lat: parsedLat,
                     lng: parsedLng
                 };
@@ -216,36 +219,60 @@ document.addEventListener('DOMContentLoaded', () => {
             });
 
             // Each route draws its own separate polyline — split at large gaps to avoid cross-route lines
-            Object.keys(routeGroups).forEach(rId => {
+            // Each route draws its own separate polyline — using OSRM for real road path
+            const routeIds = Object.keys(routeGroups);
+            
+            // Process routes sequentially to avoid rate limiting
+            for (const rId of routeIds) {
                 const rt = routeGroups[rId];
                 if (rt.stations.length > 1) {
                     const color = getBusColor(rt.id, rt.name, null);
-                    // Split into segments: if distance between consecutive stations > 0.05 deg (~5km), break the line
-                    let segment = [rt.stations[0]];
+                    
+                    // Split into segments if stations are too far (e.g. across cities)
+                    let currentSegment = [rt.stations[0]];
                     for (let i = 1; i < rt.stations.length; i++) {
                         const prev = rt.stations[i - 1];
                         const curr = rt.stations[i];
                         const dist = Math.sqrt(Math.pow(curr.lat - prev.lat, 2) + Math.pow(curr.lng - prev.lng, 2));
-                        if (dist > 0.05) {
-                            // Draw current segment if it has 2+ points
-                            if (segment.length > 1) {
-                                L.polyline(segment.map(s => [s.lat, s.lng]), {
-                                    color, weight: 4, opacity: 0.6, dashArray: '10, 10', lineJoin: 'round'
-                                }).addTo(map);
-                            }
-                            segment = [curr]; // start new segment
+                        
+                        if (dist > 0.08) { // Threshold for jumping across cities
+                            if (currentSegment.length > 1) await drawOSRMRoute(currentSegment, color);
+                            currentSegment = [curr];
                         } else {
-                            segment.push(curr);
+                            currentSegment.push(curr);
                         }
                     }
-                    // Draw the last segment
-                    if (segment.length > 1) {
-                        L.polyline(segment.map(s => [s.lat, s.lng]), {
-                            color, weight: 4, opacity: 0.6, dashArray: '10, 10', lineJoin: 'round'
-                        }).addTo(map);
-                    }
+                    if (currentSegment.length > 1) await drawOSRMRoute(currentSegment, color);
                 }
-            });
+            }
+
+            async function drawOSRMRoute(stations, color) {
+                try {
+                    const coords = stations.map(s => `${s.lng},${s.lat}`).join(';');
+                    const url = `https://router.project-osrm.org/route/v1/driving/${coords}?overview=full&geometries=geojson`;
+                    const res = await fetch(url);
+                    const data = await res.json();
+
+                    if (data.code === 'Ok' && data.routes?.length > 0) {
+                        const geometry = data.routes[0].geometry;
+                        // Main line
+                        L.geoJSON(geometry, {
+                            style: { color, weight: 4, opacity: 0.65, dashArray: '8, 8', lineJoin: 'round' }
+                        }).addTo(map);
+                        // Glow line
+                        L.geoJSON(geometry, {
+                            style: { color, weight: 10, opacity: 0.15, lineCap: 'round' }
+                        }).addTo(map);
+                    } else {
+                        throw new Error('OSRM fallback');
+                    }
+                } catch (e) {
+                    // Fallback to straight lines if OSRM fails
+                    L.polyline(stations.map(s => [s.lat, s.lng]), {
+                        color, weight: 4, opacity: 0.5, dashArray: '10, 10', lineJoin: 'round'
+                    }).addTo(map);
+                }
+            }
 
         } catch (error) {
             console.error('Fetch Stations Error:', error);
@@ -337,29 +364,61 @@ document.addEventListener('DOMContentLoaded', () => {
     // ==========================================
     // 9. Fetch Real Buses
     // ==========================================
-    const PREDEFINED_ROUTES = [
-        { id: 'R1', name: "Ain Shams Housing Bus Station- Al Asmarat", startStr: "Ain Shams", endStr: "Al Asmarat", color: "#3b82f6", numBuses: 3 },
-        { id: 'R2', name: "El Shrouk Sports Clup- El Shrouk Academy", startStr: "Shorouk", endStr: "Academy", color: "#ef4444", numBuses: 3 },
-        { id: 'R3', name: "Madinaty Main Station- Open Air Mall", startStr: "Madinaty", endStr: "Open Air Mall", color: "#f59e0b", numBuses: 3 },
-        { id: 'R4', name: "El Haram Square- Al Horeyya Rd", startStr: "Haram", endStr: "Horeyya", color: "#8b5cf6", numBuses: 3 }
-    ];
-
     async function fetchRealBuses() {
         try {
-            const res = await fetch('https://transit-way.runasp.net/api/Bus');
-            if (res.ok) {
-                const data = await res.json();
-                allRealBuses = data.$values || data || [];
+            const token = localStorage.getItem('adminToken');
+            const headers = token ? { 'Authorization': `Bearer ${token}` } : {};
+
+            const [resPrimary, resAdmin] = await Promise.allSettled([
+                fetch('https://transit-way.runasp.net/api/Bus', { headers }),
+                fetch('https://transit-way.runasp.net/api/admin/buses', { headers })
+            ]);
+
+            async function extract(res) {
+                if (res.status !== 'fulfilled' || !res.value.ok) return [];
+                const data = await res.value.json();
+                if (Array.isArray(data)) return data;
+                return data.$values || data.value || data.data || [];
             }
+
+            const primaryBuses = await extract(resPrimary);
+            const adminBuses   = await extract(resAdmin);
+
+            const adminMap = {};
+            adminBuses.forEach(item => {
+                const loc = item.latestLocation || item;
+                if (loc && loc.busId) adminMap[loc.busId] = loc;
+            });
+
+            allRealBuses = primaryBuses.map(pb => {
+                const live = adminMap[pb.id];
+                return {
+                    ...pb,
+                    latitude: live?.latitude || pb.latitude || pb.lat || 0,
+                    longitude: live?.longitude || pb.longitude || pb.lng || 0,
+                    speed: live?.speed ?? pb.speed ?? 0,
+                    status: live?.status || pb.status || 'Active'
+                };
+            });
+
+            // Add any admin-only buses
+            Object.keys(adminMap).forEach(id => {
+                if (!allRealBuses.find(b => b.id == id)) {
+                    const live = adminMap[id];
+                    allRealBuses.push({
+                        id: live.busId,
+                        busNumber: live.busNumber || `Bus #${live.busId}`,
+                        latitude: live.latitude,
+                        longitude: live.longitude,
+                        speed: live.speed,
+                        status: 'Active'
+                    });
+                }
+            });
+
         } catch (e) {
             console.error('Fetch Buses Error:', e);
         }
-
-        // Demo buses representing the 1 real bus connected to API per route
-        const demoBuses = PREDEFINED_ROUTES.map((r, i) => ({
-            id: `REAL_${r.id}`, busnumber: `API-${i+1}`, routeid: r.id, routeName: r.name, drivername: `API Driver ${i+1}`, platenumber: `API-${i+1}00`, status: 'Active', customColor: r.color
-        }));
-        demoBuses.forEach(vb => allRealBuses.push(vb));
     }
 
     // ==========================================
@@ -372,75 +431,30 @@ document.addEventListener('DOMContentLoaded', () => {
 
         let activeCount = 0;
 
-        allRealBuses.forEach(bus => {
-            const bId     = getPropIgnoreCase(bus, 'id');
+        allRealBuses.forEach(item => {
+            // The API returns objects with a 'latestLocation' property
+            const bus = item.latestLocation || item;
+            const bId = getPropIgnoreCase(bus, 'busId') || getPropIgnoreCase(bus, 'id');
             if (!bId) return;
 
-            const bNum    = getPropIgnoreCase(bus, 'busnumber') ?? getPropIgnoreCase(bus, 'platenumber') ?? bId;
+            const bNum    = getPropIgnoreCase(bus, 'busNumber') ?? getPropIgnoreCase(bus, 'plateNumber') ?? bId;
             const bRouteName = getPropIgnoreCase(bus, 'routeName') ?? getPropIgnoreCase(bus, 'route') ?? 'N/A';
             const bRouteId  = getPropIgnoreCase(bus, 'routeId')   ?? getPropIgnoreCase(bus, 'route_id') ?? 'N/A';
-            const bDriver = getPropIgnoreCase(bus, 'drivername') ?? 'No Driver';
-            const bPlate  = getPropIgnoreCase(bus, 'platenumber') ?? 'N/A';
-            const bStatus = getPropIgnoreCase(bus, 'status')    ?? 'Inactive';
+            const bDriver = getPropIgnoreCase(bus, 'driverName') ?? 'No Driver';
+            const bPlate  = getPropIgnoreCase(bus, 'plateNumber') ?? 'N/A';
+            const bStatus = getPropIgnoreCase(bus, 'status')    ?? 'Active';
             
             // Determine color based on city line
             const color = getBusColor(bRouteId, bRouteName, bus.customColor || null);
 
             if (bStatus.toLowerCase() === 'active') activeCount++;
 
-            // Constrain bus to its route — try matching by routeId, then routeName, then zone
-            let validStations = allStations.filter(s => String(s.routeId) === String(bRouteId));
-            if (validStations.length === 0) validStations = allStations.filter(s => s.routeName && bRouteName && s.routeName.toLowerCase() === bRouteName.toLowerCase());
-            if (validStations.length === 0 && bRouteName) validStations = allStations.filter(s => s.zone && bRouteName.toLowerCase().includes(s.zone.toLowerCase()));
-            
-            // Map demo buses directly to predefined route stations
-            if (bId.startsWith('REAL_')) {
-                const pr = PREDEFINED_ROUTES.find(r => r.id === bRouteId);
-                if (pr) {
-                    const s1 = allStations.find(s => s.name.toLowerCase().includes(pr.startStr.toLowerCase()));
-                    const s2 = allStations.find(s => s.name.toLowerCase().includes(pr.endStr.toLowerCase()));
-                    if (s1 && s2) validStations = [s1, s2];
-                }
-            }
+            // Use real GPS coordinates from the latestLocation object
+            const lat = getPropIgnoreCase(bus, 'latitude') || getPropIgnoreCase(bus, 'lat') || 0;
+            const lng = getPropIgnoreCase(bus, 'longitude') || getPropIgnoreCase(bus, 'lng') || 0;
+            const speed = getPropIgnoreCase(bus, 'speed') || 0;
 
-            if (validStations.length === 0) validStations = allStations; // fallback to all stations
-
-            if (!bus._routeStations) {
-                bus._routeStations = validStations;
-                bus._currentIdx = Math.abs(parseInt(bId) || 0) % validStations.length;
-            }
-
-            if (!bus._simBase) {
-                let initialStation = bus._routeStations[bus._currentIdx] || { lat: 30.069, lng: 31.338 };
-                bus._simBase = [initialStation.lat, initialStation.lng];
-            } else {
-                // Move towards the next station on the route
-                if (bus._routeStations.length > 1) {
-                    const nextIdx = (bus._currentIdx + 1) % bus._routeStations.length;
-                    const targetStation = bus._routeStations[nextIdx];
-                    
-                    const dx = targetStation.lat - bus._simBase[0];
-                    const dy = targetStation.lng - bus._simBase[1];
-                    const dist = Math.sqrt(dx * dx + dy * dy);
-
-                    if (dist < 0.002) {
-                        bus._currentIdx = nextIdx; // Reached target station, move to next
-                    } else {
-                        // Move step
-                        const stepSq = 0.001; 
-                        bus._simBase[0] += (dx / dist) * stepSq;
-                        bus._simBase[1] += (dy / dist) * stepSq;
-                    }
-                } else {
-                    // If only 1 station, minor jitter
-                    bus._simBase[0] += (Math.random() - 0.5) * 0.002;
-                    bus._simBase[1] += (Math.random() - 0.5) * 0.002;
-                }
-            }
-
-            const lat = bus._simBase[0];
-            const lng = bus._simBase[1];
-            const speed = Math.floor(Math.random() * 30) + 15;
+            if (!lat || !lng || lat === 0) return; // Skip buses without location data
 
             // Popup HTML
             const popupHtml = `
@@ -483,7 +497,6 @@ document.addEventListener('DOMContentLoaded', () => {
                                 white-space:nowrap;
                             ">#${bId}</div>
                             <div style="position:relative;display:flex;align-items:center;justify-content:center;">
-                                <div class="bus-pulse bus-pulse-real" style="background:${color};"></div>
                                 <i class="fas fa-bus" style="color:${color};font-size:22px;z-index:2;position:relative;text-shadow:0 0 4px rgba(255,255,255,0.8);"></i>
                             </div>
                         </div>`,
@@ -502,6 +515,104 @@ document.addEventListener('DOMContentLoaded', () => {
 
         // Refresh heatmap every sync if on
         if (heatmapOn) buildHeatmap();
+    }
+
+    // ==========================================
+    // 10a. Place Real Buses on Routes (no-GPS fallback)
+    // ==========================================
+    async function buildRouteZoneMap() {
+        try {
+            const res = await fetch('https://transit-way.runasp.net/api/Routes');
+            if (!res.ok) return;
+            const routes = await res.json();
+            const arr = Array.isArray(routes) ? routes : (routes.$values || []);
+            arr.forEach(r => { routeIdToZoneMap[r.id] = (r.zone || '').toLowerCase().trim(); });
+        } catch(e) { console.warn('Could not fetch routes for zone mapping:', e); }
+    }
+
+    async function placeRealBusesOnRoutes() {
+        // Clear previous
+        realBusRouteIntervals.forEach(id => clearInterval(id));
+        realBusRouteIntervals = [];
+        Object.values(realBusRouteMarkers).forEach(m => { try { map.removeLayer(m); } catch(e){} });
+        realBusRouteMarkers = {};
+
+        if (isGlobalSimulationActive || isSimulationActive) return;
+
+        let placed = 0;
+        for (const bus of allRealBuses) {
+            const lat = bus.latitude || bus.lat || 0;
+            const lng = bus.longitude || bus.lng || 0;
+            if (lat && lng && lat !== 0) continue; // syncFleet handles GPS buses
+
+            const routeId = bus.routeId || bus.route_id;
+            if (!routeId) continue;
+
+            const zone = routeIdToZoneMap[routeId];
+            if (!zone) continue;
+
+            // Match stations by zone
+            const routeStations = allStations.filter(st =>
+                (st.routeId || '').toLowerCase().trim() === zone ||
+                (st.zone || '').toLowerCase().trim() === zone
+            );
+            if (routeStations.length < 1) continue;
+
+            const routeName = routeStations[0]?.routeName || routeStations[0]?.zone || '';
+            const color = getBusColor(routeId, routeName, null);
+
+            // Park the bus at the FIRST station of its route (no movement)
+            const firstStation = routeStations[0];
+            if (!firstStation || !firstStation.lat || !firstStation.lng) continue;
+
+            const bId = bus.id, bNum = bus.busNumber || bus.plateNumber || bId;
+            const bDriver = bus.driverName || 'No Driver';
+            const bPlate = bus.plateNumber || 'N/A';
+
+            const popupHtml = `
+                <div style="font-family:'Plus Jakarta Sans',sans-serif; min-width:190px;">
+                    <h4 style="color:${color}; margin:0 0 10px; font-size:15px; border-bottom:1px solid #eee; padding-bottom:8px;">
+                        <i class="fas fa-bus"></i> Bus #${bNum}
+                    </h4>
+                    <div style="font-size:13px; line-height:1.9;">
+                        <b><i class="fas fa-route" style="color:#8b5cf6;"></i> Route:</b> ${routeName}<br>
+                        <b><i class="fas fa-id-card" style="color:#3b82f6;"></i> Plate:</b> ${bPlate}<br>
+                        <b><i class="fas fa-user-tie" style="color:#f59e0b;"></i> Driver:</b> ${bDriver}<br>
+                        <b><i class="fas fa-map-marker-alt" style="color:#22c55e;"></i> Station:</b> ${firstStation.name}<br>
+                        <b><i class="fas fa-circle" style="color:${color};"></i> Status:</b> <b>Parked</b>
+                    </div>
+                </div>`;
+
+            const icon = L.divIcon({
+                className: 'bus-marker-icon',
+                html: `
+                    <div style="display:flex;flex-direction:column;align-items:center;gap:2px;">
+                        <div class="bus-id-label" style="
+                            background:${color};color:#fff;
+                            font-size:10px;font-weight:900;
+                            padding:2px 8px;border-radius:8px;
+                            box-shadow:0 2px 6px rgba(0,0,0,0.25);
+                            font-family:'Plus Jakarta Sans',sans-serif;
+                            white-space:nowrap;
+                        ">#${bId}</div>
+                        <div style="position:relative;display:flex;align-items:center;justify-content:center;">
+                            <i class="fas fa-bus" style="color:${color};font-size:22px;z-index:2;position:relative;text-shadow:0 0 4px rgba(255,255,255,0.8);"></i>
+                        </div>
+                    </div>`,
+                iconSize: [50, 58],
+                iconAnchor: [25, 58]
+            });
+
+            // Place marker at first station — NO animation interval
+            const marker = L.marker([firstStation.lat, firstStation.lng], { icon }).addTo(map).bindPopup(popupHtml);
+            realBusRouteMarkers[bId] = marker;
+            placed++;
+        }
+
+        // Update active bus count
+        const statActive = document.getElementById('statActiveBuses');
+        if (statActive && placed > 0) statActive.innerText = placed + Object.keys(busMarkers).length;
+        console.log(`Parked ${placed} real buses at their first station`);
     }
 
     // ==========================================
@@ -649,11 +760,6 @@ document.addEventListener('DOMContentLoaded', () => {
                 return;
             }
 
-            if (st1.routeId !== st2.routeId) {
-                Swal.fire('Error', 'Stations must belong to the same route.', 'error');
-                return;
-            }
-
             // Clear any previous route animation
             clearRouteAnimation();
 
@@ -768,27 +874,44 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
+    
     // ==========================================
     // GLOBAL SIMULATION STATE & TOGGLE
     // ==========================================
-    let isGlobalSimulationOn = false;
+    let isGlobalSimulationActive = false;
     let globalSimBuses = [];
     let globalSimIntervals = [];
 
     window.toggleSimulation = function() {
         const btn = document.getElementById('toggleSimBtn');
-        isGlobalSimulationOn = !isGlobalSimulationOn;
-        if (isGlobalSimulationOn) {
-            btn.classList.add('paused');
-            btn.innerHTML = '<i class="fas fa-pause-circle"></i><span>Simulation OFF</span>';
-            // Remove real bus markers before starting simulation
-            realBusMarkers.forEach(m => { try { map.removeLayer(m); } catch(e){} });
-            realBusMarkers = [];
+        isGlobalSimulationActive = !isGlobalSimulationActive;
+        isSimulationActive = isGlobalSimulationActive; // sync with existing flag
+        
+        if (isGlobalSimulationActive) {
+            if (btn) {
+                btn.classList.add('paused');
+                btn.innerHTML = '<i class="fas fa-pause-circle"></i><span>Simulation OFF</span>';
+            }
+            
+            // Hide real buses (GPS-based)
+            Object.values(busMarkers).forEach(m => { try { map.removeLayer(m); } catch(e){} });
+            busMarkers = {};
+            // Hide real buses (route-animated)
+            realBusRouteIntervals.forEach(id => clearInterval(id));
+            realBusRouteIntervals = [];
+            Object.values(realBusRouteMarkers).forEach(m => { try { map.removeLayer(m); } catch(e){} });
+            realBusRouteMarkers = {};
+
             startGlobalSimulation();
         } else {
-            btn.classList.remove('paused');
-            btn.innerHTML = '<i class="fas fa-play-circle"></i><span>Simulation ON</span>';
+            if (btn) {
+                btn.classList.remove('paused');
+                btn.innerHTML = '<i class="fas fa-play-circle"></i><span>Simulation ON</span>';
+            }
+            
             stopGlobalSimulation();
+            syncFleet(); // Restore GPS buses
+            placeRealBusesOnRoutes(); // Restore route-animated real buses
         }
     };
 
@@ -811,90 +934,90 @@ document.addEventListener('DOMContentLoaded', () => {
         return interpolated;
     }
 
-    // Hardcoded station ID sequences for each route (from the API data)
-    const ROUTE_STATION_IDS = {
-        'R1': [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14],       // Ain Shams Housing → Al Asmarat (Cairo zone)
-        'R2': [27, 29, 30, 31, 32, 33, 34, 36, 37, 38, 39],           // El Shrouk Sports Clup → El Shrouk Academy (El-Shrouk zone)
-        'R3': [57, 58, 59, 60, 61, 62, 63, 64, 65, 66],               // Madinaty Main Station → Open Air Mall (Madinty zone)
-        'R4': [41, 42, 43, 44, 45, 46, 47, 48, 49, 50, 51, 52, 53, 54, 55]  // El Haram Square → Al Horeyya Rd (Badr zone)
-    };
-
-    function startGlobalSimulation() {
-        PREDEFINED_ROUTES.forEach(route => {
-            const stationIds = ROUTE_STATION_IDS[route.id];
-            if (!stationIds) return;
-
-            // Get actual station objects in order
-            const routeStations = stationIds
-                .map(id => allStations.find(s => s.id === id))
-                .filter(s => s && s.lat && s.lng && !isNaN(s.lat) && !isNaN(s.lng));
-
-            if (routeStations.length < 2) {
-                console.warn(`Route ${route.name}: Not enough valid stations found (${routeStations.length})`);
-                return;
+    async function startGlobalSimulation() {
+        const routeGroups = {};
+        allStations.forEach(st => {
+            if (st.lat && st.lng && st.routeId != null) {
+                const rId = String(st.routeId);
+                if (!routeGroups[rId]) routeGroups[rId] = { id: st.routeId, name: st.routeName || 'Route '+st.routeId, stations: [] };
+                routeGroups[rId].stations.push(st);
             }
-
-            const coords = routeStations.map(s => L.latLng(s.lat, s.lng));
-            const interpolatedCoords = interpolatePoints(coords, 0.0002);
-            console.log(`Route ${route.name}: Spawning ${route.numBuses} buses on ${routeStations.length} stations (${interpolatedCoords.length} interpolated points)`);
-            spawnSimulatedBusesForRoute(route, interpolatedCoords);
         });
-    }
 
-    let realBusMarkers = [];
+        const routesToSimulate = Object.values(routeGroups);
+        
+        for (const route of routesToSimulate) {
+            if (route.stations.length < 2) continue;
+
+            const rName = (route.name || '').toLowerCase();
+            let routeColor = null;
+            
+            if (rName.includes('shrouk') || rName.includes('shorouk') || rName.includes('academy')) {
+                routeColor = CITY_COLORS.shorouk;
+            } else if (rName.includes('madinaty') || rName.includes('madinty') || rName.includes('open air mall')) {
+                routeColor = CITY_COLORS.madinaty;
+            } else if (rName.includes('cairo') || rName.includes('ain shams') || rName.includes('asmarat')) {
+                routeColor = CITY_COLORS.cairo;
+            } else if (rName.includes('badr') || rName.includes('haram') || rName.includes('horeyya')) {
+                routeColor = CITY_COLORS.badr;
+            } else {
+                continue;
+            }
+            
+            // Find the main valid segment
+            let bestSegment = [];
+            let currentSegment = [route.stations[0]];
+            
+            for (let i = 1; i < route.stations.length; i++) {
+                const prev = route.stations[i - 1];
+                const curr = route.stations[i];
+                const dist = Math.sqrt(Math.pow(curr.lat - prev.lat, 2) + Math.pow(curr.lng - prev.lng, 2));
+                
+                if (dist > 0.08) {
+                    if (currentSegment.length > bestSegment.length) bestSegment = currentSegment;
+                    currentSegment = [curr];
+                } else {
+                    currentSegment.push(curr);
+                }
+            }
+            if (currentSegment.length > bestSegment.length) bestSegment = currentSegment;
+
+            if (bestSegment.length < 2) continue;
+
+            // Fetch OSRM path for simulation to follow roads exactly
+            try {
+                const osrmCoords = bestSegment.map(s => `${s.lng},${s.lat}`).join(';');
+                const url = `https://router.project-osrm.org/route/v1/driving/${osrmCoords}?overview=full&geometries=geojson`;
+                const res = await fetch(url);
+                const data = await res.json();
+
+                if (data.code === 'Ok' && data.routes?.length > 0) {
+                    const geometry = data.routes[0].geometry.coordinates;
+                    const latLngs = geometry.map(c => L.latLng(c[1], c[0]));
+                    // Interpolate for smoother movement
+                    const interpolatedCoords = interpolatePoints(latLngs, 0.0001);
+                    spawnSimulatedBusesForRoute(route, routeColor, interpolatedCoords);
+                } else {
+                    throw new Error('OSRM fail');
+                }
+            } catch (e) {
+                // Fallback to straight lines
+                const coords = bestSegment.map(s => L.latLng(s.lat, s.lng));
+                const interpolatedCoords = interpolatePoints(coords, 0.0002);
+                spawnSimulatedBusesForRoute(route, routeColor, interpolatedCoords);
+            }
+        }
+    }
 
     function stopGlobalSimulation() {
         globalSimIntervals.forEach(id => clearInterval(id));
         globalSimIntervals = [];
         globalSimBuses.forEach(m => { try { map.removeLayer(m); } catch(e){} });
         globalSimBuses = [];
-
-        // Remove previous real bus markers
-        realBusMarkers.forEach(m => { try { map.removeLayer(m); } catch(e){} });
-        realBusMarkers = [];
-
-        // Place 1 real bus at the first station of each route
-        PREDEFINED_ROUTES.forEach(route => {
-            const stationIds = ROUTE_STATION_IDS[route.id];
-            if (!stationIds || stationIds.length === 0) return;
-
-            const firstStation = allStations.find(s => s.id === stationIds[0]);
-            if (!firstStation || !firstStation.lat || !firstStation.lng) return;
-
-            const icon = L.divIcon({
-                className: 'bus-marker-icon',
-                html: `
-                    <div style="display:flex;flex-direction:column;align-items:center;gap:2px;">
-                        <div style="background:${route.color};color:#fff;font-size:10px;font-weight:900;padding:2px 8px;border-radius:8px;font-family:'Plus Jakarta Sans',sans-serif;white-space:nowrap;border:1px solid rgba(255,255,255,0.4);">REAL - ${route.name}</div>
-                        <div style="position:relative;display:flex;align-items:center;justify-content:center;">
-                            <div class="bus-pulse" style="background:${route.color};"></div>
-                            <i class="fas fa-bus" style="color:${route.color};font-size:22px;z-index:2;position:relative;text-shadow:0 0 6px rgba(255,255,255,0.9);"></i>
-                        </div>
-                    </div>`,
-                iconSize: [54, 58],
-                iconAnchor: [27, 58]
-            });
-
-            const marker = L.marker([firstStation.lat, firstStation.lng], { icon })
-                .addTo(map)
-                .bindPopup(`
-                    <div style="font-family:'Plus Jakarta Sans',sans-serif;min-width:180px;">
-                        <h4 style="color:${route.color};margin:0 0 8px;font-size:14px;border-bottom:1px solid #e2e8f0;padding-bottom:6px;">
-                            <i class="fas fa-bus"></i> Real Bus
-                        </h4>
-                        <div style="font-size:12px;line-height:1.8;">
-                            <b>Route:</b> ${route.name}<br>
-                            <b>Station:</b> ${firstStation.name}<br>
-                            <b>Status:</b> <span style="color:#22c55e;font-weight:800;">Waiting ●</span>
-                        </div>
-                    </div>`);
-            realBusMarkers.push(marker);
-        });
     }
 
-    function spawnSimulatedBusesForRoute(route, coords) {
-        // Create buses staggered along the route
-        const busesCount = route.numBuses || 3;
+    function spawnSimulatedBusesForRoute(route, color, coords) {
+        const busesCount = 3;
         for (let i = 0; i < busesCount; i++) {
             const startIdx = Math.floor((coords.length / busesCount) * i);
             let idx = startIdx;
@@ -903,9 +1026,9 @@ document.addEventListener('DOMContentLoaded', () => {
                 className: 'bus-marker-icon bus-no-pulse',
                 html: `
                     <div style="display:flex;flex-direction:column;align-items:center;gap:2px;">
-                        <div style="background:${route.color};color:#fff;font-size:10px;font-weight:900;padding:2px 8px;border-radius:8px;font-family:'Plus Jakarta Sans',sans-serif;white-space:nowrap;border:1px solid rgba(255,255,255,0.4);">SIM - ${route.name}</div>
+                        <div style="background:${color};color:#fff;font-size:10px;font-weight:900;padding:2px 8px;border-radius:8px;font-family:'Plus Jakarta Sans',sans-serif;white-space:nowrap;border:1px solid rgba(255,255,255,0.4);box-shadow:0 2px 6px rgba(0,0,0,0.25);">SIM - ${route.name}</div>
                         <div style="position:relative;display:flex;align-items:center;justify-content:center;">
-                            <i class="fas fa-bus" style="color:${route.color};font-size:20px;z-index:2;position:relative;text-shadow:0 0 6px rgba(255,255,255,0.9);"></i>
+                            <i class="fas fa-bus" style="color:${color};font-size:20px;z-index:2;position:relative;text-shadow:0 0 4px rgba(255,255,255,0.8);"></i>
                         </div>
                     </div>`,
                 iconSize: [54, 56],
@@ -915,7 +1038,7 @@ document.addEventListener('DOMContentLoaded', () => {
             const marker = L.marker(coords[idx] || coords[0], { icon }).addTo(map);
             globalSimBuses.push(marker);
             
-            const stepMs = 100 + Math.random() * 80; // random speed 100ms-180ms per tick
+            const stepMs = 100 + Math.random() * 50; 
             const ivl = setInterval(() => {
                 idx = (idx + 1) % coords.length;
                 marker.setLatLng(coords[idx]);
@@ -924,16 +1047,20 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
+
     // ==========================================
     // 12. Initialize
     // ==========================================
     fetchStationsAndInitMap().then(() => {
         fetchRealStats();
-        fetchRealBuses().then(() => {
-            syncFleet();
-            setInterval(syncFleet, 4000);
-            // Refresh real stats every 60s
-            setInterval(fetchRealStats, 60000);
+        buildRouteZoneMap().then(() => {
+            fetchRealBuses().then(() => {
+                syncFleet();
+                placeRealBusesOnRoutes(); // Place real buses on routes (no-GPS fallback)
+                setInterval(syncFleet, 4000);
+                // Refresh real stats every 60s
+                setInterval(fetchRealStats, 60000);
+            });
         });
     });
 

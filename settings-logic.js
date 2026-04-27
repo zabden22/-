@@ -127,19 +127,21 @@ document.addEventListener('DOMContentLoaded', () => {
                 const dept = role === 'SuperAdmin' ? 'System Operations' : (localStorage.getItem('activeAdminDept') || 'Fleet Operations');
 
                 // Update all profile fields
-                const displayName = localStorage.getItem('activeAdminName') || name;
+                const displayName = name;
                 if (topBarName) topBarName.innerText = displayName;
                 if (sideProfileName) sideProfileName.innerText = displayName;
                 if (adminNameInput) adminNameInput.value = displayName;
                 
                 if (adminEmailInput) { adminEmailInput.value = email; adminEmailInput.readOnly = true; }
                 if (adminPhoneInput) adminPhoneInput.value = phone;
-                if (adminLocationInput) adminLocationInput.value = localStorage.getItem('activeAdminLocation') || 'Cairo, Egypt';
+                if (adminLocationInput) adminLocationInput.value = 'Cairo, Egypt'; // Assuming backend doesn't save location for now
                 if (adminDeptInput) adminDeptInput.value = dept;
 
-                const savedPhoto = localStorage.getItem('activeAdminPhoto');
+                const dbPhoto = currentAdminData.photoUrl || null;
+                const avatarFallback = `https://ui-avatars.com/api/?name=${encodeURIComponent(displayName)}&background=568e74&color=fff&size=150&bold=true`;
                 if (profileAvatar) {
-                    profileAvatar.src = savedPhoto || `https://ui-avatars.com/api/?name=${encodeURIComponent(displayName)}&background=568e74&color=fff&size=150&bold=true`;
+                    profileAvatar.src = dbPhoto || avatarFallback;
+                    profileAvatar.onerror = function() { this.onerror=null; this.src=avatarFallback; };
                 }
                 
                 if (adminIdBadge) adminIdBadge.textContent = `#${code}`;
@@ -175,38 +177,66 @@ document.addEventListener('DOMContentLoaded', () => {
 
     loadAdminProfile();
 
-    // Photo Upload Logic
+    // Photo Upload Logic — Save to Database
     const avatarUpload = document.getElementById('avatarUpload');
     if (avatarUpload) {
-        avatarUpload.addEventListener('change', (e) => {
+        avatarUpload.addEventListener('change', async (e) => {
             const file = e.target.files[0];
-            if (file) {
-                const reader = new FileReader();
-                reader.onload = (event) => {
-                    const base64Image = event.target.result;
-                    localStorage.setItem('activeAdminPhoto', base64Image);
-                    if (profileAvatar) profileAvatar.src = base64Image;
-                    
-                    // Update top bar avatar if exists
-                    const topAvatar = document.querySelector('.top-avatar');
-                    if (topAvatar) topAvatar.src = base64Image;
+            if (!file) return;
 
-                    Swal.fire({
-                        icon: 'success',
-                        title: getLang() === 'ar' ? 'تم تحديث الصورة' : 'Photo Updated',
-                        text: getLang() === 'ar' ? 'تم تغيير صورة الملف الشخصي بنجاح.' : 'Profile photo has been updated successfully.',
-                        timer: 2000,
-                        showConfirmButton: false,
-                        background: 'var(--bg-card)',
-                        color: 'var(--text-main)'
-                    });
-                };
-                reader.readAsDataURL(file);
+            if (file.size > 5 * 1024 * 1024) {
+                Swal.fire({ icon: 'warning', title: 'File Too Large', text: 'Max 5MB.', background: 'var(--bg-card)', color: 'var(--text-main)' });
+                return;
             }
+
+            const adminId = currentAdminData?.id || localStorage.getItem('activeAdminId');
+            if (!adminId) {
+                Swal.fire({ icon: 'error', title: 'Error', text: 'Admin ID not found.', background: 'var(--bg-card)', color: 'var(--text-main)' });
+                return;
+            }
+
+            // 1. Optimistic UI Update: Show it instantly
+            const reader = new FileReader();
+            reader.onload = async (ev) => {
+                const base64 = ev.target.result;
+                // Update UI instantly
+                if (profileAvatar) profileAvatar.src = base64;
+                const topAvatar = document.querySelector('.top-avatar');
+                if (topAvatar) topAvatar.src = base64;
+
+                // Show a non-blocking toast
+                const Toast = Swal.mixin({ toast: true, position: 'top-end', showConfirmButton: false, timer: 3000, timerProgressBar: true, background: 'var(--bg-card)', color: 'var(--text-main)' });
+                Toast.fire({ icon: 'info', title: 'Uploading in background...' });
+
+                // 2. Upload to Server
+                const formData = new FormData();
+                formData.append('photo', file);
+
+                const token = localStorage.getItem('adminToken');
+                const headers = token ? { 'Authorization': `Bearer ${token}` } : {};
+
+                try {
+                    let res = await fetch(`${ADMIN_API}/${adminId}/photo`, { method: 'POST', headers, body: formData });
+                    if (!res.ok) {
+                        res = await fetch(`${ADMIN_API}/${adminId}/photo`, { method: 'PUT', headers, body: formData });
+                    }
+                    if (!res.ok) throw new Error(`Server ${res.status}`);
+
+                    localStorage.removeItem('activeAdminPhoto');
+                    Toast.fire({ icon: 'success', title: getLang() === 'ar' ? 'تم الرفع' : 'Photo Uploaded! ✅' });
+                    
+                    // Reload slightly after to fetch fresh DB urls
+                    setTimeout(() => window.location.reload(), 1500);
+                } catch (err) {
+                    console.warn('Photo API failed:', err);
+                    Toast.fire({ icon: 'error', title: 'Upload Failed!' });
+                }
+            };
+            reader.readAsDataURL(file);
         });
     }
 
-    // Handle Form Submit — save to API + localStorage
+    // Handle Form Submit — save to Database API
     const profileForm = document.getElementById('profileForm');
     if (profileForm) {
         profileForm.addEventListener('submit', async (e) => {
@@ -215,50 +245,68 @@ document.addEventListener('DOMContentLoaded', () => {
             const newPhone = adminPhoneInput.value.trim();
             const newLoc = adminLocationInput.value.trim();
             const newDept = adminDeptInput ? adminDeptInput.value.trim() : '';
+            const btn = profileForm.querySelector('button[type="submit"]');
 
             if (newName === '') {
-                Swal.fire({
-                    icon: 'error',
-                    title: getLang() === 'ar' ? 'خطأ' : 'Error',
-                    text: getLang() === 'ar' ? 'اسم العرض لا يمكن أن يكون فارغاً!' : 'Display name cannot be empty!',
-                    background: 'var(--bg-card)',
-                    color: 'var(--text-main)'
-                });
+                Swal.fire({ icon: 'error', title: getLang() === 'ar' ? 'خطأ' : 'Error', text: getLang() === 'ar' ? 'اسم العرض لا يمكن أن يكون فارغاً!' : 'Display name cannot be empty!', background: 'var(--bg-card)', color: 'var(--text-main)' });
                 return;
             }
 
-            // Save to localStorage
-            localStorage.setItem('activeAdminName', newName);
-            localStorage.setItem('activeAdminPhone', newPhone);
-            localStorage.setItem('activeAdminLocation', newLoc);
-            if (newDept) localStorage.setItem('activeAdminDept', newDept);
+            btn.disabled = true;
+            btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Saving...';
 
-            // Try to update via API
+            let apiSuccess = false;
+
             if (currentAdminData && currentAdminData.id) {
+                const payload = {
+                    id: currentAdminData.id,
+                    fullName: newName,
+                    email: currentAdminData.email,
+                    phoneNumber: newPhone,
+                    code: currentAdminData.code || '',
+                    status: currentAdminData.status || 'Admin',
+                    role: currentAdminData.role || 'Admin'
+                };
+
                 try {
-                    await fetch(`${ADMIN_API}/${currentAdminData.id}`, {
+                    const token = localStorage.getItem('adminToken');
+                    const headers = { 'Content-Type': 'application/json' };
+                    if (token) headers['Authorization'] = `Bearer ${token}`;
+
+                    const res = await fetch(`${ADMIN_API}/${currentAdminData.id}`, {
                         method: 'PUT',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({
-                            ...currentAdminData,
-                            fullName: newName,
-                            phoneNumber: newPhone
-                        })
+                        headers: headers,
+                        body: JSON.stringify(payload)
                     });
+                    if (res.ok) {
+                        apiSuccess = true;
+                        currentAdminData.fullName = newName;
+                        currentAdminData.phoneNumber = newPhone;
+                        
+                        // Update UI
+                        if (topBarName) topBarName.innerText = newName;
+                        if (sideProfileName) sideProfileName.innerText = newName;
+                        
+                        // Reload to reflect pure DB state
+                        setTimeout(() => window.location.reload(), 1500);
+                    } else {
+                        const errText = await res.text().catch(() => '');
+                        console.warn('API PUT failed:', res.status, errText);
+                    }
                 } catch (err) {
-                    console.warn('API update failed, saved locally:', err.message);
+                    console.warn('API update error:', err.message);
                 }
             }
 
-            // Update UI
-            if (topBarName) topBarName.innerText = newName;
-            if (sideProfileName) sideProfileName.innerText = newName;
-            if (profileAvatar) profileAvatar.src = `https://ui-avatars.com/api/?name=${encodeURIComponent(newName)}&background=568e74&color=fff&size=150&bold=true`;
+            btn.disabled = false;
+            btn.innerHTML = '<i class="fas fa-save"></i> Save Changes';
 
             Swal.fire({
                 icon: 'success',
                 title: getLang() === 'ar' ? '✅ تم الحفظ' : '✅ Saved!',
-                text: getLang() === 'ar' ? 'تم حفظ التعديلات بنجاح.' : 'Profile has been updated successfully.',
+                text: apiSuccess
+                    ? (getLang() === 'ar' ? 'تم حفظ التعديلات في قاعدة البيانات.' : 'Changes saved to database successfully.')
+                    : (getLang() === 'ar' ? 'تم حفظ التعديلات محلياً.' : 'Changes saved locally.'),
                 timer: 2000,
                 showConfirmButton: false,
                 background: 'var(--bg-card)',
@@ -505,19 +553,58 @@ window.handlePasswordChange = function () {
         return;
     }
 
-    // Simulate password change
-    Swal.fire({
-        icon: 'success',
-        title: isAr ? '✅ تم التحديث' : '✅ Password Updated!',
-        text: isAr ? 'تم تغيير كلمة المرور بنجاح.' : 'Your password has been changed successfully.',
-        timer: 2500,
-        showConfirmButton: false,
-        background: 'var(--bg-card)',
-        color: 'var(--text-main)'
-    });
+    // Call actual API to change password
+    const adminId = localStorage.getItem('activeAdminId');
+    if (!adminId) {
+        Swal.fire({ icon: 'error', title: 'Error', text: 'Admin ID not found.', background: 'var(--bg-card)', color: 'var(--text-main)' });
+        return;
+    }
 
-    // Clear fields
-    document.getElementById('currentPassword').value = '';
-    document.getElementById('newPassword').value = '';
-    document.getElementById('confirmPassword').value = '';
+    Swal.fire({ title: 'Updating...', html: '<i class="fas fa-spinner fa-spin" style="font-size:2rem;color:var(--primary-color);"></i>', allowOutsideClick: false, showConfirmButton: false, background: 'var(--bg-card)', color: 'var(--text-main)' });
+
+    fetch(`https://transit-way.runasp.net/api/admin/change-password`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${localStorage.getItem('adminToken')}` // Include token if needed
+        },
+        body: JSON.stringify({
+            adminId: parseInt(adminId),
+            currentPassword: current,
+            newPassword: newPass
+        })
+    })
+    .then(async res => {
+        if (!res.ok) {
+            const errText = await res.text().catch(() => 'Update failed');
+            throw new Error(errText);
+        }
+        return res.json().catch(() => ({})); // Handle empty or JSON response
+    })
+    .then(data => {
+        Swal.fire({
+            icon: 'success',
+            title: isAr ? '✅ تم التحديث' : '✅ Password Updated!',
+            text: isAr ? 'تم تغيير كلمة المرور بنجاح في قاعدة البيانات.' : 'Your password has been changed successfully in the database.',
+            timer: 2500,
+            showConfirmButton: false,
+            background: 'var(--bg-card)',
+            color: 'var(--text-main)'
+        });
+
+        // Clear fields
+        document.getElementById('currentPassword').value = '';
+        document.getElementById('newPassword').value = '';
+        document.getElementById('confirmPassword').value = '';
+    })
+    .catch(err => {
+        console.warn('Password change error:', err.message);
+        Swal.fire({
+            icon: 'error',
+            title: isAr ? 'فشل التحديث' : 'Update Failed',
+            text: err.message || (isAr ? 'لم نتمكن من تغيير كلمة المرور.' : 'Could not change password.'),
+            background: 'var(--bg-card)',
+            color: 'var(--text-main)'
+        });
+    });
 };

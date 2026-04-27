@@ -26,68 +26,39 @@ document.addEventListener('DOMContentLoaded', () => {
 
     const API = 'https://transit-way.runasp.net/api/admin';
 
-    // 2. Fallback Mock Data
-    const mockAdmins = [
-        { id: 1, code: 'ADM-001', fullName: adminName, email: 'admin@transitway.gov.eg', phoneNumber: '01023456789', status: 'Active', role: 'SuperAdmin' },
-        { id: 2, code: 'ADM-002', fullName: 'Ahmed Khaled', email: 'ahmed.k@transitway.gov.eg', phoneNumber: '01198765432', status: 'Active', role: 'Admin' },
-        { id: 3, code: 'ADM-003', fullName: 'Sara Mohamed', email: 'sara.m@transitway.gov.eg', phoneNumber: '01234567890', status: 'Inactive', role: 'Admin' },
-    ];
-
     let adminsData = [];
 
-    // 3. Fetch from API
+    // 2. Fetch from API (DB is the single source of truth)
     async function loadAdmins() {
         cardsGrid.innerHTML = `<div style="grid-column:1/-1; text-align:center; padding:60px; color:var(--text-muted);"><i class="fas fa-spinner fa-spin" style="font-size:2rem; margin-bottom:12px; display:block;"></i>Loading admins...</div>`;
         try {
-            const res = await fetch(API);
+            const token = localStorage.getItem('adminToken');
+            const headers = token ? { 'Authorization': `Bearer ${token}` } : {};
+            const res = await fetch(API, { headers });
             if (!res.ok) throw new Error(`Server ${res.status}`);
             const data = await res.json();
+            const list = Array.isArray(data) ? data : (data.$values || []);
 
-            if (Array.isArray(data) && data.length > 0) {
-                adminsData = data.map(a => ({
-                    id: a.id,
-                    code: a.code || `ADM-${String(a.id).padStart(3, '0')}`,
-                    name: a.fullName || a.phoneNumber || a.email?.split('@')[0] || 'Admin',
-                    email: a.email || '—',
-                    phone: a.phoneNumber || '—',
-                    status: (a.status === 'Active' || a.status === 'Admin') ? 'Active' : 'Inactive',
-                    role: a.role || (a.status === 'Admin' ? 'Admin' : 'Admin'),
-                    department: a.role === 'SuperAdmin' ? 'System Operations' : 'General',
-                }));
-            } else {
-                adminsData = mapMock(mockAdmins);
-            }
+            adminsData = list.map(a => ({
+                id: a.id,
+                code: a.code || `ADM-${String(a.id).padStart(3, '0')}`,
+                name: a.fullName || a.phoneNumber || a.email?.split('@')[0] || 'Admin',
+                email: a.email || '—',
+                phone: a.phoneNumber || '—',
+                photo: a.photoUrl || null,
+                status: (a.status === 'Active' || a.status === 'Admin') ? 'Active' : 'Inactive',
+                role: a.role || 'Admin',
+                department: a.role === 'SuperAdmin' ? 'System Operations' : 'General',
+            }));
+
+            renderCards(adminsData);
         } catch (e) {
-            console.warn('Using mock admins. Reason:', e.message);
-            adminsData = mapMock(mockAdmins);
+            console.error('Failed to load admins:', e);
+            cardsGrid.innerHTML = `<div style="grid-column:1/-1; text-align:center; padding:60px; color:#ef4444;"><i class="fas fa-exclamation-triangle" style="font-size:2rem; margin-bottom:12px; display:block;"></i>Failed to load admins from server<br><small style="color:var(--text-muted);">${e.message}</small></div>`;
         }
-
-        // --- MERGE LOCAL STORAGE ADMINS ---
-        const localAdmins = JSON.parse(localStorage.getItem('addedAdmins') || '[]');
-        if (localAdmins.length > 0) {
-            // Filter out any that might already be in the list (by ID or Email)
-            const existingEmails = new Set(adminsData.map(a => a.email.toLowerCase()));
-            const toAdd = localAdmins.filter(a => !existingEmails.has(a.email.toLowerCase()));
-            adminsData = [...adminsData, ...toAdd];
-        }
-
-        renderCards(adminsData);
     }
 
-    function mapMock(list) {
-        return list.map(a => ({
-            id: a.id,
-            code: a.code,
-            name: a.fullName || 'Admin',
-            email: a.email || '—',
-            phone: a.phoneNumber || '—',
-            status: a.status === 'Active' ? 'Active' : 'Inactive',
-            role: a.role || 'Admin',
-            department: a.role === 'SuperAdmin' ? 'System Operations' : 'General',
-        }));
-    }
-
-    // 4. Render Cards
+    // 3. Render Cards
     function renderCards(list) {
         if (!cardsGrid) return;
         cardsGrid.innerHTML = '';
@@ -107,15 +78,20 @@ document.addEventListener('DOMContentLoaded', () => {
             const roleStyle = roleColors[admin.role] || roleColors['Admin'];
             const roleLabel = admin.role === 'SuperAdmin' ? 'Super Admin' : admin.role;
 
-            const isMe = admin.name === adminName || admin.email === localStorage.getItem('activeAdminEmail');
-            const avatarSrc = (isMe && savedPhoto) ? savedPhoto : `https://ui-avatars.com/api/?name=${encodeURIComponent(admin.name)}&background=568e74&color=fff&size=100&bold=true`;
+            const avatarSrc = admin.photo || `https://transit-way.runasp.net/api/admin/${admin.id}/photo`;
+            const fallbackAvatar = `https://ui-avatars.com/api/?name=${encodeURIComponent(admin.name)}&background=568e74&color=fff&size=100&bold=true`;
 
             const card = document.createElement('div');
             card.className = 'admin-card';
             card.innerHTML = `
                 <span class="admin-card-status ${isActive ? 'active' : 'inactive'}">${admin.status}</span>
                 <div class="admin-card-header">
-                    <img class="admin-card-avatar" src="${avatarSrc}" alt="${admin.name}">
+                    <div style="position:relative;">
+                        <img class="admin-card-avatar" src="${avatarSrc}" alt="${admin.name}" id="admin-avatar-${admin.id}" onerror="this.onerror=null; this.src='${fallbackAvatar}'">
+                        <button class="change-photo-btn" onclick="triggerPhotoUpload('admin', ${admin.id})" style="position:absolute; bottom:0; right:0; width:24px; height:24px; border-radius:50%; background:var(--primary-color); color:white; border:none; cursor:pointer; display:flex; align-items:center; justify-content:center; font-size:0.7rem; box-shadow:0 2px 5px rgba(0,0,0,0.2);">
+                            <i class="fas fa-camera"></i>
+                        </button>
+                    </div>
                     <div>
                         <div class="admin-card-name">${admin.name}</div>
                         <div class="admin-card-id">${admin.code}</div>
@@ -143,7 +119,7 @@ document.addEventListener('DOMContentLoaded', () => {
         updateStats();
     }
 
-    // 5. Update Stats
+    // 4. Update Stats
     function updateStats() {
         const total = adminsData.length;
         const active = adminsData.filter(a => a.status === 'Active').length;
@@ -172,7 +148,7 @@ document.addEventListener('DOMContentLoaded', () => {
     // Initial load
     loadAdmins();
 
-    // 6. Search
+    // 5. Search
     if (searchInput) {
         searchInput.addEventListener('input', (e) => {
             const term = e.target.value.toLowerCase();
@@ -186,7 +162,7 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
-    // 7. Modal
+    // 6. Modal
     const openModalBtn = document.getElementById('openModalBtn');
     if (openModalBtn) {
         openModalBtn.onclick = () => {
@@ -206,7 +182,7 @@ document.addEventListener('DOMContentLoaded', () => {
         };
     }
 
-    // 8. Add Admin (POST to API)
+    // 7. Add Admin (POST to API — persisted in DB)
     if (addAdminForm) {
         addAdminForm.addEventListener('submit', async (e) => {
             e.preventDefault();
@@ -221,68 +197,50 @@ document.addEventListener('DOMContentLoaded', () => {
                 fullName: formData.get('fullName').trim(),
                 email: formData.get('email').trim(),
                 phoneNumber: formData.get('phoneNumber').trim(),
-                password: formData.get('password').trim()
+                password: formData.get('password').trim(),
+                role: formData.get('role') || 'Admin'
             };
 
             try {
+                const token = localStorage.getItem('adminToken');
+                const headers = { 'Content-Type': 'application/json' };
+                if (token) headers['Authorization'] = `Bearer ${token}`;
+
                 const res = await fetch(API, {
                     method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
+                    headers,
                     body: JSON.stringify(payload)
                 });
 
-                const newAdmin = {
-                    id: Date.now(), // Fallback ID
-                    code: `ADM-${Math.floor(100 + Math.random() * 900)}`,
-                    name: payload.fullName,
-                    email: payload.email,
-                    phone: payload.phoneNumber,
-                    status: 'Active',
-                    role: 'Admin',
-                    department: 'General'
-                };
-
                 if (res.ok) {
-                    const data = await res.json().catch(() => ({}));
-                    if (data.id) newAdmin.id = data.id;
+                    Swal.fire({
+                        icon: 'success',
+                        title: 'Admin Added! ✅',
+                        text: `${payload.fullName} has been registered and saved to the database.`,
+                        timer: 2000,
+                        showConfirmButton: false,
+                        background: 'var(--bg-card)',
+                        color: 'var(--text-main)'
+                    });
 
-                    Swal.fire({ icon: 'success', title: 'Admin Added! ✅', text: `${payload.fullName} has been registered.`, timer: 2000, showConfirmButton: false, background: 'var(--bg-card)', color: 'var(--text-main)' });
+                    // Reload the full list from DB to stay in sync
+                    adminModal.classList.remove('active');
+                    addAdminForm.reset();
+                    await loadAdmins();
                 } else {
-                    Swal.fire({ icon: 'success', title: 'Admin Added! ✅', text: `${payload.fullName} added (local mode).`, timer: 2000, showConfirmButton: false, background: 'var(--bg-card)', color: 'var(--text-main)' });
+                    const errText = await res.text().catch(() => '');
+                    throw new Error(errText || `Server responded with ${res.status}`);
                 }
 
-                // Add to memory and Local Storage
-                adminsData.push(newAdmin);
-                const localAdmins = JSON.parse(localStorage.getItem('addedAdmins') || '[]');
-                localAdmins.push(newAdmin);
-                localStorage.setItem('addedAdmins', JSON.stringify(localAdmins));
-
-                renderCards(adminsData);
-                adminModal.classList.remove('active');
-                addAdminForm.reset();
-
             } catch (err) {
-                console.warn('API Add failed, using local only:', err);
-                const newAdmin = {
-                    id: Date.now(),
-                    code: `ADM-${Math.floor(100 + Math.random() * 900)}`,
-                    name: payload.fullName,
-                    email: payload.email,
-                    phone: payload.phoneNumber,
-                    status: 'Active',
-                    role: 'Admin',
-                    department: 'General'
-                };
-                adminsData.push(newAdmin);
-                
-                const localAdmins = JSON.parse(localStorage.getItem('addedAdmins') || '[]');
-                localAdmins.push(newAdmin);
-                localStorage.setItem('addedAdmins', JSON.stringify(localAdmins));
-
-                renderCards(adminsData);
-                adminModal.classList.remove('active');
-                addAdminForm.reset();
-                Swal.fire({ icon: 'success', title: 'Admin Added! ✅', text: `${payload.fullName} added (local backup).`, timer: 2000, showConfirmButton: false, background: 'var(--bg-card)', color: 'var(--text-main)' });
+                console.error('Failed to add admin:', err);
+                Swal.fire({
+                    icon: 'error',
+                    title: 'Failed to Add Admin',
+                    html: `<p>Could not save admin to the database.</p><small style="color:var(--text-muted);">${err.message}</small>`,
+                    background: 'var(--bg-card)',
+                    color: 'var(--text-main)'
+                });
             } finally {
                 btn.disabled = false;
                 btn.innerText = 'Add Admin';
@@ -290,7 +248,7 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
-    // 9. Card Actions — Event Delegation
+    // 8. Card Actions — Event Delegation
     if (cardsGrid) {
         cardsGrid.addEventListener('click', async (e) => {
             const btn = e.target.closest('.toggle-status') || e.target.closest('.delete-admin');
@@ -311,19 +269,19 @@ document.addEventListener('DOMContentLoaded', () => {
                 let apiSuccess = false;
 
                 // Try multiple API patterns to persist the change
+                const token = localStorage.getItem('adminToken');
+                const headers = token ? { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' } : { 'Content-Type': 'application/json' };
+
                 const attempts = [
-                    // Pattern 1: PUT with full object
                     () => fetch(`${API}/${admin.id}`, {
                         method: 'PUT',
-                        headers: { 'Content-Type': 'application/json' },
+                        headers,
                         body: JSON.stringify({ ...admin, status: newStatus, fullName: admin.name, phoneNumber: admin.phone })
                     }),
-                    // Pattern 2: PUT with query param
-                    () => fetch(`${API}/status/${admin.id}?status=${newStatus}`, { method: 'PUT' }),
-                    // Pattern 3: PATCH
+                    () => fetch(`${API}/status/${admin.id}?status=${newStatus}`, { method: 'PUT', headers }),
                     () => fetch(`${API}/${admin.id}`, {
                         method: 'PATCH',
-                        headers: { 'Content-Type': 'application/json' },
+                        headers,
                         body: JSON.stringify({ status: newStatus })
                     }),
                 ];
@@ -337,17 +295,9 @@ document.addEventListener('DOMContentLoaded', () => {
 
                 adminsData[idx].status = newStatus;
 
-                // Sync with Local Storage
-                let localAdmins = JSON.parse(localStorage.getItem('addedAdmins') || '[]');
-                const localIdx = localAdmins.findIndex(a => a.email === admin.email);
-                if (localIdx !== -1) {
-                    localAdmins[localIdx].status = newStatus;
-                    localStorage.setItem('addedAdmins', JSON.stringify(localAdmins));
-                }
-
                 Swal.fire({
                     icon: 'success', title: 'Status Updated',
-                    text: `${admin.name} is now ${newStatus}${apiSuccess ? '' : ' (local)'}`,
+                    text: `${admin.name} is now ${newStatus}${apiSuccess ? '' : ' (pending sync)'}`,
                     timer: 1500, showConfirmButton: false,
                     background: 'var(--bg-card)', color: 'var(--text-main)'
                 });
@@ -374,19 +324,22 @@ document.addEventListener('DOMContentLoaded', () => {
                 });
 
                 if (confirm.isConfirmed) {
-                    // Try API delete
                     try {
-                        await fetch(`${API}/${admin.id}`, { method: 'DELETE' });
-                    } catch { /* fallback */ }
-
-                    // Sync with Local Storage
-                    let localAdmins = JSON.parse(localStorage.getItem('addedAdmins') || '[]');
-                    localAdmins = localAdmins.filter(a => a.email !== admin.email);
-                    localStorage.setItem('addedAdmins', JSON.stringify(localAdmins));
-
-                    adminsData.splice(idx, 1);
-                    renderCards(adminsData);
-                    Swal.fire({ title: 'Deleted!', icon: 'success', timer: 1500, showConfirmButton: false, background: 'var(--bg-card)', color: 'var(--text-main)' });
+                        const token = localStorage.getItem('adminToken');
+                        const headers = token ? { 'Authorization': `Bearer ${token}` } : {};
+                        const res = await fetch(`${API}/${admin.id}`, { method: 'DELETE', headers });
+                        
+                        if (res.ok) {
+                            Swal.fire({ title: 'Deleted!', text: `${admin.name} has been removed from the database.`, icon: 'success', timer: 1500, showConfirmButton: false, background: 'var(--bg-card)', color: 'var(--text-main)' });
+                            // Reload from DB
+                            await loadAdmins();
+                        } else {
+                            throw new Error(`Server ${res.status}`);
+                        }
+                    } catch (err) {
+                        console.error('Delete failed:', err);
+                        Swal.fire({ icon: 'error', title: 'Delete Failed', text: 'Could not remove admin from the database.', background: 'var(--bg-card)', color: 'var(--text-main)' });
+                    }
                 }
             }
         });

@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>TransitWay - Admins Management</title>
+    <title>TransitWay - Users Management</title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link rel="stylesheet" href="dashboard-style.css">
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
@@ -12,9 +12,9 @@
 
     <style>
         /* ═══════════════════════════════════════
-           🛡️ Admins Page — Premium Styles
+           🛡️ Users Page — Premium Styles
            ═══════════════════════════════════════ */
-        .admins-hero {
+        .users-hero {
             display: flex;
             align-items: center;
             gap: 24px;
@@ -26,7 +26,7 @@
             position: relative;
             overflow: hidden;
         }
-        .admins-hero::before {
+        .users-hero::before {
             content: '';
             position: absolute;
             top: -40%; right: -10%;
@@ -34,7 +34,7 @@
             background: radial-gradient(circle, rgba(86,142,116,0.06) 0%, transparent 70%);
             border-radius: 50%;
         }
-        .admins-hero-icon {
+        .users-hero-icon {
             width: 64px; height: 64px;
             border-radius: 18px;
             background: var(--primary-color);
@@ -44,23 +44,23 @@
             box-shadow: 0 6px 20px rgba(86,142,116,0.25);
             flex-shrink: 0;
         }
-        .admins-hero-text h2 {
+        .users-hero-text h2 {
             font-size: 1.3rem; font-weight: 800;
             color: var(--text-main); margin: 0 0 4px;
         }
-        .admins-hero-text p {
+        .users-hero-text p {
             color: var(--text-muted); font-weight: 600;
             font-size: 0.9rem; margin: 0;
         }
 
-        /* Admin Stats */
-        .admin-stats-bar {
+        /* User Stats */
+        .user-stats-bar {
             display: grid;
             grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
             gap: 14px;
             margin-bottom: 24px;
         }
-        .admin-stat-mini {
+        .user-stat-mini {
             background: var(--bg-card);
             border: 1px solid var(--border-color);
             border-radius: 14px;
@@ -68,31 +68,31 @@
             display: flex; align-items: center; gap: 14px;
             transition: all 0.3s ease;
         }
-        .admin-stat-mini:hover {
+        .user-stat-mini:hover {
             transform: translateY(-2px);
             box-shadow: 0 4px 15px rgba(0,0,0,0.05);
         }
-        .admin-stat-dot {
+        .user-stat-dot {
             width: 10px; height: 10px; border-radius: 50%;
             flex-shrink: 0;
         }
-        .admin-stat-mini h4 {
+        .user-stat-mini h4 {
             font-size: 1.3rem; font-weight: 800;
             color: var(--text-main); margin: 0; line-height: 1;
         }
-        .admin-stat-mini p {
+        .user-stat-mini p {
             font-size: 0.78rem; font-weight: 700;
             color: var(--text-muted); margin: 2px 0 0;
         }
 
-        /* Admin Cards (Grid view) */
-        .admin-cards-grid {
+        /* User Cards (Grid view) */
+        .user-cards-grid {
             display: grid;
             grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
             gap: 18px;
             margin-bottom: 24px;
         }
-        .admin-card {
+        .user-card {
             background: var(--bg-card);
             border: 1px solid var(--border-color);
             border-radius: 18px;
@@ -101,71 +101,71 @@
             overflow: hidden;
             transition: all 0.3s ease;
         }
-        .admin-card::before {
+        .user-card::before {
             content: '';
             position: absolute; top: 0; left: 0;
             width: 100%; height: 3px;
         }
-        .admin-card:nth-child(1)::before { background: linear-gradient(90deg, #568e74, #6ee7b7); }
-        .admin-card:nth-child(2)::before { background: linear-gradient(90deg, #3b82f6, #93c5fd); }
-        .admin-card:nth-child(3)::before { background: linear-gradient(90deg, #f59e0b, #fcd34d); }
-        .admin-card:nth-child(4)::before { background: linear-gradient(90deg, #8b5cf6, #c4b5fd); }
-        .admin-card:nth-child(5)::before { background: linear-gradient(90deg, #ef4444, #fca5a5); }
-        .admin-card:nth-child(n+6)::before { background: linear-gradient(90deg, #06b6d4, #67e8f9); }
+        .user-card:nth-child(1)::before { background: linear-gradient(90deg, #568e74, #6ee7b7); }
+        .user-card:nth-child(2)::before { background: linear-gradient(90deg, #3b82f6, #93c5fd); }
+        .user-card:nth-child(3)::before { background: linear-gradient(90deg, #f59e0b, #fcd34d); }
+        .user-card:nth-child(4)::before { background: linear-gradient(90deg, #8b5cf6, #c4b5fd); }
+        .user-card:nth-child(5)::before { background: linear-gradient(90deg, #ef4444, #fca5a5); }
+        .user-card:nth-child(n+6)::before { background: linear-gradient(90deg, #06b6d4, #67e8f9); }
 
-        .admin-card:hover {
+        .user-card:hover {
             transform: translateY(-4px);
             box-shadow: 0 10px 30px rgba(0,0,0,0.08);
             border-color: var(--primary-color);
         }
-        .admin-card-header {
+        .user-card-header {
             display: flex; align-items: center; gap: 14px;
             margin-bottom: 18px;
         }
-        .admin-card-avatar {
+        .user-card-avatar {
             width: 50px; height: 50px; border-radius: 50%;
             border: 2px solid var(--primary-color);
             box-shadow: 0 3px 10px rgba(86,142,116,0.15);
             object-fit: cover;
         }
-        .admin-card-name {
+        .user-card-name {
             font-size: 1.05rem; font-weight: 800;
             color: var(--text-main); margin: 0 0 2px;
         }
-        .admin-card-id {
+        .user-card-id {
             font-size: 0.78rem; font-weight: 700;
             color: var(--primary-color); font-family: monospace;
         }
-        .admin-card-status {
+        .user-card-status {
             position: absolute; top: 18px; right: 18px;
             padding: 4px 12px; border-radius: 20px;
             font-size: 0.72rem; font-weight: 800;
             text-transform: uppercase; letter-spacing: 0.3px;
         }
-        .admin-card-status.active { background: rgba(34,197,94,0.1); color: #22c55e; }
-        .admin-card-status.inactive { background: rgba(239,68,68,0.1); color: #ef4444; }
+        .user-card-status.active { background: rgba(34,197,94,0.1); color: #22c55e; }
+        .user-card-status.inactive { background: rgba(239,68,68,0.1); color: #ef4444; }
 
-        .admin-card-details {
+        .user-card-details {
             display: flex; flex-direction: column; gap: 10px;
             margin-bottom: 18px;
         }
-        .admin-card-detail {
+        .user-card-detail {
             display: flex; align-items: center; gap: 10px;
             font-size: 0.88rem; font-weight: 600;
             color: var(--text-muted);
         }
-        .admin-card-detail i {
+        .user-card-detail i {
             width: 16px; text-align: center;
             color: var(--primary-color); font-size: 0.8rem;
         }
-        .admin-card-detail span { color: var(--text-main); font-weight: 700; }
+        .user-card-detail span { color: var(--text-main); font-weight: 700; }
 
-        .admin-card-actions {
+        .user-card-actions {
             display: flex; gap: 10px;
             padding-top: 16px;
             border-top: 1px solid var(--border-color);
         }
-        .admin-action-btn {
+        .user-action-btn {
             flex: 1;
             display: flex; align-items: center; justify-content: center; gap: 6px;
             padding: 10px;
@@ -178,19 +178,19 @@
             transition: all 0.3s ease;
             font-family: 'Plus Jakarta Sans', sans-serif;
         }
-        .admin-action-btn:hover {
+        .user-action-btn:hover {
             border-color: var(--primary-color);
             color: var(--primary-color);
             background: rgba(86,142,116,0.04);
         }
-        .admin-action-btn.danger:hover {
+        .user-action-btn.danger:hover {
             border-color: #ef4444;
             color: #ef4444;
             background: rgba(239,68,68,0.04);
         }
         
         /* Role badge in card */
-        .admin-role-badge {
+        .user-role-badge {
             display: inline-flex; align-items: center; gap: 5px;
             padding: 3px 10px; border-radius: 8px;
             font-size: 0.72rem; font-weight: 800;
@@ -201,8 +201,8 @@
         }
 
         @media (max-width: 768px) {
-            .admin-cards-grid { grid-template-columns: 1fr; }
-            .admins-hero { flex-direction: column; text-align: center; }
+            .user-cards-grid { grid-template-columns: 1fr; }
+            .users-hero { flex-direction: column; text-align: center; }
         }
     </style>
     <script src="user-dropdown.js"></script>
@@ -217,10 +217,10 @@
             <nav class="side-nav">
                 <a href="dashboard.html" data-i18n="dashboard"><i class="fas fa-th-large"></i> Dashboard</a>
                 <a href="map.html" data-i18n="live_map"><i class="fas fa-map-marked-alt"></i> Live Map</a>
-                <a href="admins.html" class="active" data-i18n="admins"><i class="fas fa-user-shield"></i> Admins</a>
+                <a href="admins.html" data-i18n="admins"><i class="fas fa-user-shield"></i> Admins</a>
                 <a href="buses.html" data-i18n="buses"><i class="fas fa-bus"></i> Buses</a>
                 <a href="drivers.html" data-i18n="drivers"><i class="fas fa-users"></i> Drivers</a>
-                <a href="users.html" data-i18n="users"><i class="fas fa-user"></i> Users</a>
+                <a href="users.html" class="active" data-i18n="users"><i class="fas fa-user"></i> Users</a>
                 <a href="stations.html" data-i18n="stations"><i class="fas fa-map-marker-alt"></i> Stations</a>
                 <a href="tickets.html" data-i18n="tickets"><i class="fas fa-ticket-alt"></i> Tickets</a>
                 <a href="routes.html" data-i18n="routes"><i class="fas fa-route"></i> Routes</a>
@@ -235,7 +235,7 @@
                     <button class="hamburger-btn" id="sidebarToggle" style="background: var(--bg-card); border: 1px solid var(--border-color); width: 40px; height: 40px; border-radius: 10px; color: var(--text-main); cursor: pointer; display: flex; align-items: center; justify-content: center; font-size: 1.1rem; transition: 0.3s;">
                         <i class="fas fa-bars"></i>
                     </button>
-                    <h2 class="path-title" style="margin-bottom: 0;">Admins Management</h2>
+                    <h2 class="path-title" style="margin-bottom: 0;">Users Management</h2>
                 </div>
                 <div class="top-controls">
                     <div class="user-info">
@@ -247,42 +247,42 @@
             </header>
 
             <!-- Hero Banner -->
-            <div class="admins-hero">
-                <div class="admins-hero-icon"><i class="fas fa-user-shield"></i></div>
-                <div class="admins-hero-text">
-                    <h2>System Administrators</h2>
-                    <p>Manage administrator accounts, roles, and access permissions for the TransitWay platform</p>
+            <div class="users-hero">
+                <div class="users-hero-icon"><i class="fas fa-user-shield"></i></div>
+                <div class="users-hero-text">
+                    <h2>System Users</h2>
+                    <p>Manage user accounts, roles, and access permissions for the TransitWay platform</p>
                 </div>
             </div>
 
             <!-- Stats Bar -->
-            <div class="admin-stats-bar">
-                <div class="admin-stat-mini">
-                    <div class="admin-stat-dot" style="background:#8b5cf6;"></div>
+            <div class="user-stats-bar">
+                <div class="user-stat-mini">
+                    <div class="user-stat-dot" style="background:#8b5cf6;"></div>
                     <div>
                         <h4 id="admStatTotal">0</h4>
-                        <p>Total Admins</p>
+                        <p>Total Users</p>
                     </div>
                 </div>
-                <div class="admin-stat-mini">
-                    <div class="admin-stat-dot" style="background:#22c55e;"></div>
+                <div class="user-stat-mini">
+                    <div class="user-stat-dot" style="background:#22c55e;"></div>
                     <div>
-                        <h4 id="admStatActive">0</h4>
-                        <p>Active</p>
+                        <h4 id="statActiveUsers">0</h4>
+                        <p>Active Users</p>
                     </div>
                 </div>
-                <div class="admin-stat-mini">
-                    <div class="admin-stat-dot" style="background:#ef4444;"></div>
+                <div class="user-stat-mini">
+                    <div class="user-stat-dot" style="background:#ef4444;"></div>
                     <div>
-                        <h4 id="admStatInactive">0</h4>
-                        <p>Inactive</p>
+                        <h4 id="statBannedUsers">0</h4>
+                        <p>Banned</p>
                     </div>
                 </div>
-                <div class="admin-stat-mini">
-                    <div class="admin-stat-dot" style="background:#f59e0b;"></div>
+                <div class="user-stat-mini">
+                    <div class="user-stat-dot" style="background:#f59e0b;"></div>
                     <div>
-                        <h4 id="admStatSuper">0</h4>
-                        <p>Super Admins</p>
+                        <h4 id="statTotalBalance">0</h4>
+                        <p>Total Balance (EGP)</p>
                     </div>
                 </div>
             </div>
@@ -291,44 +291,20 @@
             <div class="actions-bar" style="display:flex; justify-content:space-between; align-items:center; margin-bottom:24px;">
                 <div class="search-box">
                     <i class="fas fa-search"></i>
-                    <input type="text" id="adminSearchInput" placeholder="Search by name, ID or email...">
+                    <input type="text" id="userSearchInput" placeholder="Search by name, ID or email...">
                 </div>
-                <button class="btn-primary" id="openModalBtn">
-                    <i class="fas fa-plus"></i> Add New Admin
-                </button>
+                
             </div>
 
-            <!-- Admin Cards Grid -->
-            <div class="admin-cards-grid" id="adminCardsGrid">
+            <!-- User Cards Grid -->
+            <div class="user-cards-grid" id="userCardsGrid">
                 <!-- Populated by JS -->
             </div>
         </main>
     </div>
 
-    <!-- Add Admin Modal -->
-    <div class="modal-overlay" id="adminModal">
-        <div class="modal-card">
-            <h2>Add New Admin</h2>
-            <p style="color: var(--text-muted); margin-bottom: 20px; font-size: 14px;">Fill in the details to create a new administrator account.</p>
-            <form id="addAdminForm">
-                <div class="modal-input"><input type="text" name="fullName" placeholder="Full Name" required></div>
-                <div class="modal-input"><input type="email" name="email" placeholder="Email Address" required></div>
-                <div class="modal-input"><input type="tel" name="phoneNumber" placeholder="Phone Number" required></div>
-                <div class="modal-input">
-                    <select name="role" required style="width:100%; padding:12px 16px; border:1.5px solid var(--border-color); border-radius:12px; background:var(--bg-main); color:var(--text-main); font-family:'Plus Jakarta Sans',sans-serif; font-size:0.95rem; font-weight:600; outline:none; transition:0.3s; cursor:pointer;">
-                        <option value="Admin">Admin</option>
-                        <option value="SuperAdmin">Super Admin</option>
-                    </select>
-                </div>
-                <div class="modal-input"><input type="password" name="password" placeholder="Create Password" required></div>
-                <div class="modal-actions">
-                    <button type="submit" class="btn-primary" style="flex: 1;">Add Admin</button>
-                    <button type="button" class="btn-cancel" id="closeModalBtn">Cancel</button>
-                </div>
-            </form>
-        </div>
-    </div>
+    
 
-    <script src="admins-logic.js?v=2.0"></script>
+    <script src="users-logic.js?v=2.0"></script>
 </body>
 </html>
